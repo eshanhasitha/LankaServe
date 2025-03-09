@@ -1,2 +1,2 @@
 # c-pyramid-shape
-Pyramid shape with 5 rows using C language 
+Pyramid shape with user input using C language 
