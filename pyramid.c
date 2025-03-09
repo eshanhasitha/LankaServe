@@ -1,6 +1,7 @@
 #include<stdio.h>
 int main()
 {
+    //variable to store the number of rows
     int rows;
     printf("Enter the number of rows: ");
     scanf("%d",&rows);
