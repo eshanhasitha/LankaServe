@@ -1,35 +1,54 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "./firebase.ts";
+import api from "./api.ts";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [result, setResult] = useState("");
+
+  const login = async () => {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await cred.user.getIdToken(true);
+      setResult("Login success (Firebase token ready)");
+    } catch (e) {
+      const error = e as any;
+      setResult(`code: ${error.code}\nmessage: ${error.message}`);
+    }
+  };
+
+  const register = async () => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await cred.user.getIdToken(true);
+      setResult("Register success. You can now call protected route.");
+    } catch (e) {
+      const error = e as any;
+      setResult(`code: ${error.code}\nmessage: ${error.message}`);
+    }
+  };
+
+  const getProfile = async () => {
+    try {
+      const res = await api.get("/users/me");
+      setResult(JSON.stringify(res.data, null, 2));
+    } catch (e) {
+      const error = e as any;
+      setResult(JSON.stringify(error.response?.data || error.message, null, 2));
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div style={{ padding: 20 }}>
+      <h2>Web App</h2>
+      <input placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <button onClick={login}>Login</button>
+      <button onClick={register}>Register</button>
+      <button onClick={getProfile}>Protected Route</button>
+      <pre>{result}</pre>
+    </div>
+  );
 }
-
-export default App
