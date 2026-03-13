@@ -1,13 +1,12 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  
+  "description": "��#\u0000 \u0000B\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000 \u0000F\u0000o\u0000l\u0000d\u0000e\u0000r\u0000\r\u0000 \u0000",
+  "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
   },
   "keywords": [],
   "author": "",
@@ -15,11 +14,14 @@
   "type": "module",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.7.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.19.3",
-    "nodemon": "^3.1.11"
+    "mongoose": "^8.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
