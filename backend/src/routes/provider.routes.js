@@ -1,15 +1,12 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.middleware.js";
-
 const router = express.Router();
 
+
+router.post("/");
 router.get("/");
 router.get("/:id");
 router.put("/:id");
-router.delete("/:id");
-
-router.get("/me", requireAuth, (req, res) => {
-  res.json({ message: "Protected route OK", user: req.user });
-});
+router.get("/category/:category");
 
 export default router;
