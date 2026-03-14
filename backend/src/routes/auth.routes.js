@@ -44,5 +44,7 @@ router.post("/register", async (req, res) => {
 router.get("/verify", requireAuth, (req, res) => {
   res.json({ message: "Token valid", user: req.user });
 });
+router.post("/login");
+
 
 export default router;
