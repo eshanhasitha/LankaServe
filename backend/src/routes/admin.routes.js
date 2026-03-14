@@ -8,4 +8,8 @@ router.get("/dashboard", requireAuth, onlyAdmin, (req, res) => {
   res.json({ message: "Admin route OK" });
 });
 
+router.get("/users");
+router.put("/provider/verify/:id");
+router.delete("/job/:id");
+router.get("/analytics");
 export default router;
