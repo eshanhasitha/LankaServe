@@ -1,52 +1,21 @@
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
-const JobSchema = new mongoose.Schema({
-
-  customer_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-
-  provider_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ServiceProvider"
-  },
-
+const jobSchema = new mongoose.Schema({
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   title: String,
-
   description: String,
-
   category: String,
-
-  budget: Number,
-
-  images: [String],
-
-  location: String,
-
+  location: {
+    type: { type: String, default: 'Point' },
+    coordinates: { type: [Number], default: [79.8612, 6.9271] }
+  },
+  price: Number,
   status: {
     type: String,
-    enum: ["pending", "accepted", "completed"],
-    default: "pending"
-  },
+    enum: ['pending', 'accepted', 'arrived', 'ongoing', 'completed', 'cancelled'],
+    default: 'pending'
+  }
+}, { timestamps: true });
 
-  created_at: {
-    type: Date,
-    default: Date.now
-  },
-
-  completed_at: Date,
-
-  arrival_confirmed: Boolean,
-
-  arrival_time: Date,
-
-  provider_completion: Boolean,
-
-  customer_completion: Boolean,
-
-  qr_code_token: String
-
-});
-
-module.exports = mongoose.model("Job", JobSchema);
+export default mongoose.model('Job', jobSchema);
