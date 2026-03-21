@@ -1,18 +1,10 @@
-import "dotenv/config";
-import app from "./app.js";
-import { connectDB } from "./config/db.js";
-import { initFirebase } from "./config/firebase.js";
+import app from './app.js';
+import { connectDB } from './config/db.js';
+import { env } from './config/env.js';
 
-const start = async () => {
-  await connectDB(process.env.MONGO_URI);
-  initFirebase();
+async function start() {
+  await connectDB();
+  app.listen(env.PORT, () => console.log(`Server on ${env.PORT}`));
+}
 
-  app.listen(process.env.PORT, () => {
-    console.log(`Server running on ${process.env.PORT}`);
-  });
-};
-
-start().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
-});
+start();
