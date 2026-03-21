@@ -1,16 +1,20 @@
-import express from "express";
-import cors from "cors";
-import routes from "./routes/index.routes.js";
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { env } from './config/env.js';
+import apiRoutes from './routes/index.routes.js';
 
 const app = express();
+
+app.use(helmet());
+app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
 app.use(express.json());
+app.use(morgan('dev'));
 
-const origins = (process.env.CORS_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
-app.use(cors({ origin: origins.length ? origins : true }));
+app.get('/', (req, res) => res.json({ success: true, message: 'Backend running' }));
+app.get('/api/health', (req, res) => res.json({ success: true, message: 'OK' }));
 
-app.get("/", (req, res) => res.json({ message: "Backend running" }));
-app.get(`${process.env.API_PREFIX}/health`, (req, res) => res.json({ status: "ok" }));
-
-app.use(process.env.API_PREFIX, routes);
+app.use(env.API_PREFIX, apiRoutes);
 
 export default app;
