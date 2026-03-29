@@ -17,15 +17,10 @@ export default function CustomerPostServicePage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-
     await apiRequest<CreateJobResponse>('/jobs', {
       method: 'POST',
-      body: JSON.stringify({
-        ...form,
-        price: Number(form.price),
-      }),
+      body: JSON.stringify({ ...form, price: Number(form.price) }),
     });
-
     alert('Job posted');
   }
 
