@@ -23,6 +23,8 @@ export default function App() {
         <Route path="post-service" element={<CustomerPostServicePage />} />
         <Route path="my-jobs" element={<CustomerMyJobsPage />} />
       </Route>
+      <Route path="/jobs/:jobId/provider" element={<ProviderJobDetailsPage />} />
+<Route path="/jobs/:jobId/customer" element={<CustomerJobDetailsPage />} />+
     </Routes>
   );
 }
