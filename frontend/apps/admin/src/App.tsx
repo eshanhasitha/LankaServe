@@ -3,7 +3,7 @@ import LoginPage from './pages/LoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminProvidersPage from './pages/AdminProvidersPage';
-import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import ProtectedAdminRoute from './components/protectedAdminRoute';
 
 export default function App() {
   return (
