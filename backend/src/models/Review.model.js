@@ -1,12 +1,36 @@
 import mongoose from 'mongoose';
 
-const reviewSchema = new mongoose.Schema({
-  jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', required: true },
-  providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  rating: { type: Number, min: 1, max: 5, required: true },
-  comment: { type: String, default: '' },
-  isDeleted: { type: Boolean, default: false }
-}, { timestamps: true });
+const ReviewSchema = new mongoose.Schema({
 
-export default mongoose.model('Review', reviewSchema);
+  job_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Job"
+  },
+
+  customer_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+
+  provider_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ServiceProvider"
+  },
+
+  rating: Number,
+
+  comment: String,
+
+  feedback_category: {
+    type: String,
+    enum: ["positive", "neutral", "negative"]
+  },
+
+  date: {
+    type: Date,
+    default: Date.now
+  }
+
+});
+
+export default mongoose.model('Review', ReviewSchema);
