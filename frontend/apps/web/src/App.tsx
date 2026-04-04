@@ -5,6 +5,9 @@ import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
 import CustomerPostServicePage from './pages/customer/CustomerPostServicePage';
 import CustomerMyJobsPage from './pages/customer/CustomerMyJobsPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import CustomerNotificationsPage from './pages/customer/CustomerNotificationsPage';
+import ProviderJobDetailsPage from './pages/provider/ProviderJobDetailsPage';
+import CustomerJobDetailsPage from './pages/customer/CustomerJobDetailsPage';
 
 export default function App() {
   return (
@@ -22,9 +25,10 @@ export default function App() {
         <Route path="dashboard" element={<CustomerDashboardPage />} />
         <Route path="post-service" element={<CustomerPostServicePage />} />
         <Route path="my-jobs" element={<CustomerMyJobsPage />} />
+        <Route path="notifications" element={<CustomerNotificationsPage />} />
       </Route>
       <Route path="/jobs/:jobId/provider" element={<ProviderJobDetailsPage />} />
-<Route path="/jobs/:jobId/customer" element={<CustomerJobDetailsPage />} />+
+      <Route path="/jobs/:jobId/customer" element={<CustomerJobDetailsPage />} />
     </Routes>
   );
 }
