@@ -22,3 +22,14 @@ export default function AdminDashboardPage() {
 
   return <div>{stats ? JSON.stringify(stats) : 'Loading...'}</div>;
 }
+const report = await apiRequest<{
+  success: boolean;
+  data: {
+    users: number;
+    providers: number;
+    jobs: number;
+    completed: number;
+  }
+}>('/admin/reports/summary');
+
+console.log(report.data);

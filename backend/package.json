@@ -21,8 +21,10 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "firebase-admin": "^13.7.0",
+    "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.23.0"
+    "mongoose": "^8.23.0",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
