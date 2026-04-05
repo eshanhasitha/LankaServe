@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env.js';
 import apiRoutes from './routes/index.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
@@ -16,5 +17,6 @@ app.get('/', (req, res) => res.json({ success: true, message: 'Backend running' 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'OK' }));
 
 app.use(env.API_PREFIX, apiRoutes);
+app.use('/api/admin', adminRoutes);
 
 export default app;
