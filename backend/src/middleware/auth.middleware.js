@@ -1,19 +1,16 @@
-import User from '../models/User.model.js';
-import { verifyAccessToken } from '../utils/tokens.js';
+import jwt from 'jsonwebtoken';
+import { sendFail } from '../utils/response';
 
-export async function requireAuth(req, res, next) {
+export function requireAuth(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) return sendFail(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+
   try {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
-
-    const payload = verifyAccessToken(token);
-    const user = await User.findById(payload.sub);
-    if (!user) return res.status(401).json({ message: 'Invalid user' });
-
-    req.user = user;
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'dev_access_secret');
+    req.user = { _id: payload.sub, role: payload.role };
     next();
   } catch {
-    res.status(401).json({ message: 'Invalid token' });
+    return sendFail(res, 401, 'Invalid token', 'UNAUTHORIZED');
   }
 }
