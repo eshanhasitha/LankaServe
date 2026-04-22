@@ -10,19 +10,21 @@ class CustomerQrScanScreen extends StatefulWidget {
 class _CustomerQrScanScreenState extends State<CustomerQrScanScreen> {
   bool _scanBusy = false;
 
+  void _show(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _scanToken(String jobId, String token) async {
     if (_scanBusy) return;
     _scanBusy = true;
     try {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Arrival confirmed.')),
-      );
+      _show('Arrival confirmed.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('QR scan failed: $e')),
-      );
+      _show('QR scan failed: $e');
     } finally {
       _scanBusy = false;
     }

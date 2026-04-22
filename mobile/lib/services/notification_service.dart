@@ -17,5 +17,7 @@ class NotificationService {
     }).toList();
   }
 
-  Future<void> markAsRead(String id) async => _api.put('/notifications/read/$id');
+  Future<void> markAsRead(String id) async {
+    await _api.put('/notifications/read/$id');
+  }
 }
