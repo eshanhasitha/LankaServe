@@ -1,0 +1,7 @@
+@media (max-width: 1024px) {
+  .app-sidebar { display: none; }
+  .app-main { margin-left: 0 !important; }
+}
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+}
