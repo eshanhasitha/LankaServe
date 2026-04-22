@@ -1,51 +1,42 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { login, type Session, type User } from './auth-api';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { login, type Session, type UserRole } from './auth-api';
 
-type AuthContextType = {
-  user: User | null;
+type AuthCtx = {
+  user: Session['user'] | null;
   accessToken: string | null;
-  loginWithDevToken: (token: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => void;
+  hasRole: (roles: UserRole[]) => boolean;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const Ctx = createContext<AuthCtx | null>(null);
+const KEY = 'lanka.web.auth';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => {
-    const raw = localStorage.getItem('lanka.web.auth');
+    const raw = localStorage.getItem(KEY);
     return raw ? JSON.parse(raw) as Session : null;
   });
 
   useEffect(() => {
-    if (session) localStorage.setItem('lanka.web.auth', JSON.stringify(session));
-    else localStorage.removeItem('lanka.web.auth');
+    if (session) localStorage.setItem(KEY, JSON.stringify(session));
+    else localStorage.removeItem(KEY);
   }, [session]);
 
-  async function loginWithDevToken(token: string) {
-    const result = await login(token);
-    setSession(result);
-  }
+  const value = useMemo<AuthCtx>(() => ({
+    user: session?.user || null,
+    accessToken: session?.accessToken || null,
+    loginWithToken: async (token: string) => setSession(await login(token)),
+    logout: () => setSession(null),
+    hasRole: (roles) => !!session?.user && roles.includes(session.user.role),
+  }), [session]);
 
-  function logout() {
-    setSession(null);
-  }
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user: session?.user ?? null,
-        accessToken: session?.accessToken ?? null,
-        loginWithDevToken,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
-  const value = useContext(AuthContext);
-  if (!value) throw new Error('useAuth must be used inside AuthProvider');
-  return value;
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 }
