@@ -1,22 +1,21 @@
-import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import express from 'express';
 import morgan from 'morgan';
-import { env } from './config/env.js';
-import apiRoutes from './routes/index.routes.js';
-import adminRoutes from './routes/admin.routes.js';
+import { env } from './config/env';
+import routes from './routes/index.routes';
+import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware';
 
 const app = express();
 
-app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
-app.use(express.json());
-app.use(morgan('dev'));
+app.use(express.json({ limit: '1mb' }));
+app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-app.get('/', (req, res) => res.json({ success: true, message: 'Backend running' }));
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'OK' }));
+app.get('/', (_req, res) => res.json({ success: true, message: 'LankaServe API running', data: null, pagination: null, errorCode: null }));
+app.get(`${env.API_PREFIX}/health`, (_req, res) => res.json({ success: true, message: 'OK', data: { status: 'healthy' }, pagination: null, errorCode: null }));
 
-app.use(env.API_PREFIX, apiRoutes);
-app.use('/api/admin', adminRoutes);
+app.use(env.API_PREFIX, routes);
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
 
 export default app;

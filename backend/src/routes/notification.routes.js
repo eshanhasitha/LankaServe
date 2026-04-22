@@ -1,18 +1,22 @@
-import express from 'express';
-import { requireAuth } from '../middleware/auth.middleware.js';
-import { getMyNotifications, markRead } from '../services/notification.service.js';
+import { Router } from 'express';
+import Notification from '../models/Notification';
+import { requireAuth } from '../middleware/auth';
+import { sendOk, sendFail } from '../utils/response';
 
-const router = express.Router();
+const router = Router();
 router.use(requireAuth);
 
-router.get('/my', async (req, res, next) => {
-  try { res.json({ success: true, data: await getMyNotifications(req.user._id) }); }
-  catch (e) { next(e); }
+router.get('/my', async (req, res) => {
+  const userId = req.user._id;
+  const items = await Notification.find({ userId }).sort({ createdAt: -1 }).limit(100);
+  return sendOk(res, 'Notifications loaded', items);
 });
 
-router.put('/read/:id', async (req, res, next) => {
-  try { res.json({ success: true, data: await markRead(req.user._id, req.params.id) }); }
-  catch (e) { next(e); }
+router.put('/read/:id', async (req, res) => {
+  const userId = req.user._id;
+  const item = await Notification.findOneAndUpdate({ _id: req.params.id, userId }, { isRead: true }, { new: true });
+  if (!item) return sendFail(res, 404, 'Notification not found', 'NOT_FOUND');
+  return sendOk(res, 'Notification updated', item);
 });
 
 export default router;
