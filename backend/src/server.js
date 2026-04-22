@@ -1,10 +1,13 @@
-import app from './app.js';
-import { connectDB } from './config/db.js';
-import { env } from './config/env.js';
+import app from './app';
+import { connectDB } from './config/db';
+import { env } from './config/env';
 
-async function start() {
+async function bootstrap() {
   await connectDB();
-  app.listen(env.PORT, () => console.log(`Server on ${env.PORT}`));
+  app.listen(env.PORT, () => console.log(`Server on :${env.PORT}`));
 }
 
-start();
+bootstrap().catch((err) => {
+  console.error('Bootstrap failed:', err);
+  process.exit(1);
+});

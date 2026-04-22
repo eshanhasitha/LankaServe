@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
+import { Schema, model, Types } from 'mongoose';
 
-const notificationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+const notificationSchema = new Schema({
+  userId: { type: Types.ObjectId, ref: 'User', required: true, index: true },
   type: { type: String, enum: ['job', 'system', 'payment'], default: 'job' },
   title: { type: String, required: true },
   body: { type: String, required: true },
@@ -9,4 +9,4 @@ const notificationSchema = new mongoose.Schema({
   isRead: { type: Boolean, default: false, index: true },
 }, { timestamps: true });
 
-export default mongoose.model('Notification', notificationSchema);
+export default model('Notification', notificationSchema);
