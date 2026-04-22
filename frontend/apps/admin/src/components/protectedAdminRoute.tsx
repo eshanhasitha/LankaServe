@@ -1,12 +1,12 @@
 import { Navigate } from 'react-router-dom';
+import { useAdminAuth } from '../lib/auth-context';
+import type { ReactNode } from 'react';
 
-export default function ProtectedAdminRoute({ children }: { children: JSX.Element }) {
-  const raw = localStorage.getItem('lanka.admin.auth');
-  const session = raw ? JSON.parse(raw) as { user?: { role?: string } } : null;
+export default function ProtectedAdminRoute({ children }: { children: ReactNode }) {
+  const { session } = useAdminAuth();
 
-  if (!session?.user || session.user.role !== 'admin') {
-    return <Navigate to="/login" replace />;
-  }
+  if (!session?.user) return <Navigate to="/login" replace />;
+  if (session.user.role !== 'admin') return <Navigate to="/login" replace />;
 
   return children;
 }
