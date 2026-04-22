@@ -1,21 +1,28 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../lib/api';
 
-type Job = { _id: string; title: string; status: string };
+type Job = {
+  _id: string;
+  title: string;
+  status: string;
+};
 
 export default function AdminJobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [rows, setRows] = useState<Job[]>([]);
 
   useEffect(() => {
     apiRequest<{ success: boolean; data: Job[] }>('/admin/jobs')
-      .then((r) => setJobs(r.data || []));
+      .then((res) => setRows(res.data || []))
+      .catch((err) => console.error(err));
   }, []);
 
   return (
     <div>
-      {jobs.map((j) => (
-        <div key={j._id}>
-          {j.title} - {j.status}
+      <h2>Jobs List</h2>
+
+      {rows.map((job) => (
+        <div key={job._id}>
+          {job.title} - {job.status}
         </div>
       ))}
     </div>
