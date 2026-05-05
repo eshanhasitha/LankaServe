@@ -1,22 +1,16 @@
-import { Router } from 'express';
-import Notification from '../models/Notification';
-import { requireAuth } from '../middleware/auth';
-import { sendOk, sendFail } from '../utils/response';
+import express from 'express';
+import Joi from 'joi';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAdminAuth } from '../middleware/admin-auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
+import { myNotifications, readNotification, adminBroadcast } from '../controllers/notification.controller.js';
 
-const router = Router();
+const router = express.Router();
+
+router.post('/admin/broadcast', requireAdminAuth, validate(Joi.object({ title: Joi.string().required(), body: Joi.string().required(), type: Joi.string().valid('job', 'payment', 'system', 'offer').default('system') })), adminBroadcast);
+
 router.use(requireAuth);
-
-router.get('/my', async (req, res) => {
-  const userId = req.user._id;
-  const items = await Notification.find({ userId }).sort({ createdAt: -1 }).limit(100);
-  return sendOk(res, 'Notifications loaded', items);
-});
-
-router.put('/read/:id', async (req, res) => {
-  const userId = req.user._id;
-  const item = await Notification.findOneAndUpdate({ _id: req.params.id, userId }, { isRead: true }, { new: true });
-  if (!item) return sendFail(res, 404, 'Notification not found', 'NOT_FOUND');
-  return sendOk(res, 'Notification updated', item);
-});
+router.get('/my', myNotifications);
+router.put('/read/:id', readNotification);
 
 export default router;
