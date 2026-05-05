@@ -1,29 +1,18 @@
 import mongoose from 'mongoose';
 
-const MessageSchema = new mongoose.Schema({
+const messageSchema = new mongoose.Schema({
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    threadId: { type: String, required: true, index: true },
+    contextType: { type: String, enum: ['direct', 'job'], default: 'direct', index: true },
+    jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null, index: true },
+    content: { type: String, required: true },
+    isRead: { type: Boolean, default: false, index: true },
+    readAt: { type: Date, default: null },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+}, { timestamps: true });
 
-  sender_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
+messageSchema.index({ threadId: 1, createdAt: -1 });
 
-  receiver_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-
-  text: String,
-
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-
-  is_read: {
-    type: Boolean,
-    default: false
-  }
-
-});
-
-export default mongoose.model('Message', MessageSchema);
+export default mongoose.model('Message', messageSchema);

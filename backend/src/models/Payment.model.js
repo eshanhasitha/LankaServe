@@ -1,39 +1,19 @@
 import mongoose from 'mongoose';
 
-const PaymentSchema = new mongoose.Schema({
+const paymentSchema = new mongoose.Schema({
+    jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', required: true, unique: true, index: true },
+    providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    amount: { type: Number, required: true, min: 0 },
+    status: { type: String, enum: ['pending', 'verified'], default: 'pending', index: true },
+    providerPaid: { type: Boolean, default: false },
+    customerConfirmed: { type: Boolean, default: false },
+    adminVerified: { type: Boolean, default: false },
+    verifiedAt: { type: Date, default: null },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+}, { timestamps: true });
 
-  job_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Job"
-  },
+paymentSchema.index({ providerId: 1, status: 1, createdAt: -1 });
 
-  customer_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-
-  provider_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ServiceProvider"
-  },
-
-  amount: Number,
-
-  method: {
-    type: String,
-    enum: ["cash", "bank_transfer"]
-  },
-
-  status: {
-    type: String,
-    enum: ["paid", "pending"],
-    default: "pending"
-  },
-
-  verified_by: String,
-
-  payment_date: Date
-
-});
-
-export default mongoose.model('Payment', PaymentSchema);
+export default mongoose.model('Payment', paymentSchema);
