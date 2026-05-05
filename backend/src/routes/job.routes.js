@@ -1,50 +1,38 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import Job from '../models/Job';
-import Notification from '../models/Notification';
-import { requireAuth } from '../middleware/auth';
-import { sendOk, sendFail } from '../utils/response';
+import express from 'express';
+import Joi from 'joi';
+import {
+    create,
+    update,
+    list,
+    getById,
+    accept,
+    reject,
+    cancel,
+    arrivalScan,
+    start,
+    completeProvider,
+    completeCustomer,
+    finalize,
+} from '../controllers/job.controller.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { onlyCustomer, onlyProvider } from '../middleware/role.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 
-const router = Router();
+const router = express.Router();
+
 router.use(requireAuth);
 
-const statusSchema = z.object({ status: z.enum(['accepted', 'arrived', 'ongoing', 'completed', 'cancelled']) });
-const transitions = {
-  pending: ['accepted', 'cancelled'],
-  accepted: ['arrived', 'cancelled'],
-  arrived: ['ongoing'],
-  ongoing: ['completed'],
-  completed: [],
-  cancelled: [],
-};
-
-router.put('/:id/cancel', async (req, res) => {
-  const user = req.user;
-  const job = await Job.findById(req.params.id);
-  if (!job) return sendFail(res, 404, 'Job not found', 'NOT_FOUND');
-  if (String(job.get('customerId')) !== String(user._id)) return sendFail(res, 403, 'Forbidden', 'FORBIDDEN');
-  if (!transitions[job.get('status')]?.includes('cancelled')) return sendFail(res, 400, 'Invalid status transition', 'INVALID_STATUS');
-  job.set('status', 'cancelled');
-  await job.save();
-  if (job.get('providerId')) {
-    await Notification.create({ userId: job.get('providerId'), type: 'job', title: 'Job Cancelled', body: `${job.get('title')} was cancelled.` });
-  }
-  return sendOk(res, 'Job cancelled', job);
-});
-
-router.put('/:id/status', async (req, res) => {
-  const parsed = statusSchema.safeParse(req.body);
-  if (!parsed.success) return sendFail(res, 400, 'Invalid request', 'VALIDATION_ERROR');
-  const { status } = parsed.data;
-
-  const job = await Job.findById(req.params.id);
-  if (!job) return sendFail(res, 404, 'Job not found', 'NOT_FOUND');
-  if (!transitions[job.get('status')]?.includes(status)) return sendFail(res, 400, 'Invalid status transition', 'INVALID_STATUS');
-
-  job.set('status', status);
-  await job.save();
-  await Notification.create({ userId: job.get('customerId'), type: 'job', title: 'Job Status Updated', body: `${job.get('title')} is now ${status}.` });
-  return sendOk(res, 'Job status updated', job);
-});
+router.post('/', onlyCustomer, validate(Joi.object({ title: Joi.string().required(), description: Joi.string().required(), category: Joi.string().required(), location: Joi.object({ type: Joi.string().valid('Point').default('Point'), coordinates: Joi.array().items(Joi.number()).length(2).required() }).required(), images: Joi.array().items(Joi.string()), price: Joi.number().min(0).required(), preferredProviderId: Joi.string().length(24).optional().allow(null, '') })), create);
+router.put('/:id', onlyCustomer, validate(Joi.object({ title: Joi.string().required(), description: Joi.string().required(), category: Joi.string().required(), location: Joi.object({ type: Joi.string().valid('Point').default('Point'), coordinates: Joi.array().items(Joi.number()).length(2).required() }).required(), images: Joi.array().items(Joi.string()), price: Joi.number().min(0).required(), preferredProviderId: Joi.string().length(24).optional().allow(null, '') })), update);
+router.get('/', list);
+router.get('/:id', getById);
+router.put('/:id/accept', onlyProvider, accept);
+router.put('/:id/reject', onlyProvider, reject);
+router.put('/:id/cancel', onlyCustomer, cancel);
+router.put('/:id/arrival/scan', onlyCustomer, validate(Joi.object({ token: Joi.string().required() })), arrivalScan);
+router.put('/:id/start', onlyProvider, start);
+router.put('/:id/complete/provider', onlyProvider, completeProvider);
+router.put('/:id/complete/customer', onlyCustomer, completeCustomer);
+router.put('/:id/complete/finalize', finalize);
 
 export default router;

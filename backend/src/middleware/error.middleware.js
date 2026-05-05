@@ -1,11 +1,12 @@
-import 'express';
+import { logger } from '../config/logger.js';
 
-export function notFoundMiddleware(req, res) {
-  res.status(404).json({ success: false, message: 'Route not found', data: null, pagination: null, errorCode: 'NOT_FOUND' });
-}
-
-export function errorMiddleware(err, _req, res, _next) {
-  const status = err?.statusCode || 500;
-  const message = err?.message || 'Internal server error';
-  res.status(status).json({ success: false, message, data: null, pagination: null, errorCode: err?.errorCode || 'SERVER_ERROR' });
-}
+export const errorMiddleware = (err, req, res, next) => {
+    logger.error(err.message, { stack: err.stack, path: req.originalUrl });
+    return res.status(err.statusCode || 500).json({
+        success: false,
+        message: err.message || 'Internal server error',
+        data: null,
+        pagination: null,
+        errorCode: err.errorCode || 'INTERNAL_ERROR',
+    });
+};

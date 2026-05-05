@@ -1,12 +1,15 @@
-import express from "express";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import express from 'express';
+import Joi from 'joi';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
+import { send, thread, readThread, conversations } from '../controllers/message.controller.js';
 
 const router = express.Router();
-router.post("/", requireAuth, (req, res) => {
-  res.status(501).json({ message: "Send message not implemented yet" });
-});
-router.get("/:user1/:user2", requireAuth, (req, res) => {
-  res.status(501).json({ message: `Get messages between ${req.params.user1} and ${req.params.user2} not implemented yet` });
-});
+
+router.use(requireAuth);
+router.get('/conversations', conversations);
+router.post('/send', validate(Joi.object({ receiverId: Joi.string().required(), content: Joi.string().min(1).required(), jobId: Joi.string().allow('', null) })), send);
+router.get('/thread/:userId', thread);
+router.put('/read/:threadId', readThread);
 
 export default router;

@@ -1,26 +1,33 @@
-import express from "express";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import express from 'express';
+import Joi from 'joi';
+import { getMe, updateMe, addFavorite, removeFavorite } from '../controllers/user.controller.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 
 const router = express.Router();
 
-router.get("/me", requireAuth, (req, res) => {
-  res.json({ message: "Protected route OK", user: req.user });
-});
+router.use(requireAuth);
 
-router.get("/", requireAuth, (req, res) => {
-  res.status(501).json({ message: "List users not implemented yet" });
-});
-
-router.get("/:id", requireAuth, (req, res) => {
-  res.status(501).json({ message: `Get user ${req.params.id} not implemented yet` });
-});
-
-router.put("/:id", requireAuth, (req, res) => {
-  res.status(501).json({ message: `Update user ${req.params.id} not implemented yet` });
-});
-
-router.delete("/:id", requireAuth, (req, res) => {
-  res.status(501).json({ message: `Delete user ${req.params.id} not implemented yet` });
-});
+router.get('/me', getMe);
+router.put(
+    '/me',
+    validate(
+        Joi.object({
+            name: Joi.string().min(2).max(100),
+            language: Joi.string().valid('en', 'si', 'ta'),
+            profileImage: Joi.string().allow(''),
+            bio: Joi.string().allow(''),
+            district: Joi.string().allow(''),
+            city: Joi.string().allow(''),
+            location: Joi.object({
+                type: Joi.string().valid('Point').required(),
+                coordinates: Joi.array().items(Joi.number()).length(2).required(),
+            }),
+        })
+    ),
+    updateMe
+);
+router.post('/favorites/:providerId', addFavorite);
+router.delete('/favorites/:providerId', removeFavorite);
 
 export default router;
