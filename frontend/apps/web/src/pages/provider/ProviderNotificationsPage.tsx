@@ -22,7 +22,7 @@ function iconForType(type) {
   return { icon: 'notifications', iconWrap: 'bg-slate-100 text-slate-600' };
 }
 
-export default function CustomerNotificationsPage() {
+export default function ProviderNotificationsPage() {
   const { accessToken } = useAuth();
   const [activeTab, setActiveTab] = useState('All');
   const [notifications, setNotifications] = useState([]);
@@ -151,7 +151,7 @@ export default function CustomerNotificationsPage() {
                 <span className="material-symbols-outlined">{icon.icon}</span>
               </div>
               <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-bold text-slate-900">{item.title || 'Notification'}</h4>
                     {item?.job?.displayId ? (
@@ -170,8 +170,7 @@ export default function CustomerNotificationsPage() {
                   <div className="mt-3">
                     <Link
                       className="inline-block px-4 py-1.5 bg-[#2F4DA0] text-white text-xs font-bold rounded-lg hover:bg-blue-800 transition-colors"
-                      to={`/customer/my-jobs/${item.data.jobId}`}
-                      state={{ jobTitle: item.title || 'Job Details' }}
+                      to={`/provider/my-jobs`}
                     >
                       View Job
                     </Link>
@@ -186,12 +185,6 @@ export default function CustomerNotificationsPage() {
             </article>
           );
         })}
-        {!loading && filtered.length === 0 ? (
-          <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center space-y-3">
-            <span className="material-symbols-outlined text-slate-300 text-4xl">notifications_off</span>
-            <p className="text-sm font-medium text-slate-500">No notifications available.</p>
-          </div>
-        ) : null}
       </div>
 
       <div className="flex justify-center pt-8 pb-12">

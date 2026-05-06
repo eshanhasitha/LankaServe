@@ -1,25 +1,21 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import Avatar from '../../components/Avatar.tsx';
-import Skeleton from '../../components/Skeleton.tsx';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { uploadProfileImage } from '../../lib/profile-image-client.ts';
 import { changeCurrentUserPassword, getCurrentFirebaseAuthProvider } from '../../lib/firebase-client.ts';
+import Avatar from '../../components/Avatar.tsx';
+import Skeleton from '../../components/Skeleton.tsx';
 import { DEFAULT_SRI_LANKA_LOCATION, searchSriLankaLocations } from '../../lib/location.ts';
 import { notifyError } from '../../lib/toast.ts';
 
 const tabs = [
   { key: 'profile', label: 'Profile', icon: 'person' },
   { key: 'security', label: 'Security', icon: 'shield' },
+  { key: 'services', label: 'Services & Availability', icon: 'calendar_today' },
+  { key: 'verification', label: 'Verification', icon: 'verified_user' },
 ];
 
-const notificationRows = [
-  { key: 'jobUpdates', title: 'Job Updates', description: 'Receive notifications about status changes of your jobs.' },
-  { key: 'newMessages', title: 'New Messages', description: 'Get notified when a provider or customer sends you a message.' },
-  { key: 'paymentAlerts', title: 'Payment Alerts', description: 'Important notifications regarding invoices and bank payouts.' },
-];
-
-export default function CustomerSettingsPage() {
+export default function ProviderSettingsPage() {
   const { user, accessToken, updateCurrentUser } = useAuth();
   const [resolvedAuthProvider, setResolvedAuthProvider] = useState(user?.authProvider || null);
   const requiresCurrentPassword = resolvedAuthProvider !== 'google';
@@ -36,12 +32,14 @@ export default function CustomerSettingsPage() {
   const [form, setForm] = useState({
     fullName: user?.name || '',
     email: user?.email || '',
-    language: user?.language || 'en',
     profileImage: user?.profileImage || '',
-    bio: user?.bio || '',
-    district: user?.district || DEFAULT_SRI_LANKA_LOCATION.district,
-    city: user?.city || DEFAULT_SRI_LANKA_LOCATION.city,
-    location: user?.location || { type: 'Point', coordinates: DEFAULT_SRI_LANKA_LOCATION.coordinates },
+    bio: '',
+    district: DEFAULT_SRI_LANKA_LOCATION.district,
+    city: DEFAULT_SRI_LANKA_LOCATION.city,
+    location: { type: 'Point', coordinates: DEFAULT_SRI_LANKA_LOCATION.coordinates },
+    categories: '',
+    yearsExperience: 0,
+    availability: 'offline',
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,22 +47,16 @@ export default function CustomerSettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
   const passwordStrength = useMemo(() => getPasswordStrength(passwordForm.newPassword), [passwordForm.newPassword]);
-  const [toggles, setToggles] = useState({
-    jobUpdates: true,
-    newMessages: true,
-    paymentAlerts: false,
-    profileAvailableNow: true,
-  });
-
-  useEffect(() => {
-    setResolvedAuthProvider(user?.authProvider || null);
-  }, [user?.authProvider]);
 
   useEffect(() => {
     if (activeTab !== 'security') return;
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setPasswordMessage('');
   }, [activeTab, requiresCurrentPassword]);
+
+  useEffect(() => {
+    setResolvedAuthProvider(user?.authProvider || null);
+  }, [user?.authProvider]);
 
   useEffect(() => {
     let active = true;
@@ -91,27 +83,33 @@ export default function CustomerSettingsPage() {
       setLoading(true);
       try {
         const headers = { Authorization: `Bearer ${accessToken}` };
-        const response = await apiRequest('/users/me', { headers });
+        const [providerRes, userRes] = await Promise.all([
+          apiRequest('/providers/me', { headers }).catch(() => ({ data: null })),
+          apiRequest('/users/me', { headers }).catch(() => ({ data: null })),
+        ]);
         if (!mounted) return;
-        const me = response?.data || {};
+        const provider = providerRes?.data || {};
+        const me = userRes?.data || {};
         updateCurrentUser(me);
         const savedCoordinates =
-          Array.isArray(me?.location?.coordinates) && me.location.coordinates.length === 2
-            ? me.location.coordinates
+          Array.isArray(provider?.location?.coordinates) && provider.location.coordinates.length === 2
+            ? provider.location.coordinates
             : DEFAULT_SRI_LANKA_LOCATION.coordinates;
         setForm((prev) => ({
           ...prev,
           fullName: me?.name || prev.fullName,
           email: me?.email || prev.email,
-          language: me?.language || prev.language,
           profileImage: me?.profileImage || prev.profileImage,
-          bio: me?.bio || prev.bio,
-          district: me?.district || prev.district,
-          city: me?.city || prev.city,
+          bio: provider?.bio || '',
+          district: provider?.district || prev.district,
+          city: provider?.city || prev.city,
           location: { type: 'Point', coordinates: savedCoordinates },
+          categories: Array.isArray(provider?.categories) ? provider.categories.join(', ') : '',
+          yearsExperience: provider?.yearsExperience || 0,
+          availability: provider?.availability || 'offline',
         }));
         setLocationQuery(
-          [me?.city || '', me?.district || '']
+          [provider?.city || '', provider?.district || '']
             .filter(Boolean)
             .join(', ') || DEFAULT_SRI_LANKA_LOCATION.label
         );
@@ -125,12 +123,26 @@ export default function CustomerSettingsPage() {
     return () => {
       mounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, user?.email, user?.name]);
 
   useEffect(() => {
-    if (locationQuery) return;
-    setLocationQuery([form.city, form.district].filter(Boolean).join(', '));
-  }, [form.city, form.district, locationQuery]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        setLocationLoading(true);
+        const results = await searchSriLankaLocations(locationQuery);
+        if (!active) return;
+        setLocationSuggestions(results);
+      } finally {
+        if (active) setLocationLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [locationQuery]);
 
   useEffect(() => () => {
     if (previewUrlRef.current) {
@@ -153,27 +165,6 @@ export default function CustomerSettingsPage() {
     return () => window.clearTimeout(timer);
   }, [photoUploading]);
 
-  useEffect(() => {
-    let active = true;
-    const query = locationQuery.trim();
-
-    const timer = window.setTimeout(async () => {
-      try {
-        setLocationLoading(true);
-        const results = await searchSriLankaLocations(query);
-        if (!active) return;
-        setLocationSuggestions(results);
-      } finally {
-        if (active) setLocationLoading(false);
-      }
-    }, 250);
-
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [locationQuery]);
-
   function onField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -187,10 +178,6 @@ export default function CustomerSettingsPage() {
     }));
     setLocationQuery(location.label);
     setShowLocationSuggestions(false);
-  }
-
-  function onToggle(key) {
-    setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   async function onSelectPhoto(event) {
@@ -287,32 +274,41 @@ export default function CustomerSettingsPage() {
     setSaving(true);
     try {
       const headers = { Authorization: `Bearer ${accessToken}` };
-      const response = await apiRequest('/users/me', {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          name: form.fullName,
-          language: form.language,
-          profileImage: form.profileImage,
-          bio: form.bio,
-          district: form.district,
-          city: form.city,
-          location: form.location,
+      const [userResponse] = await Promise.all([
+        apiRequest('/users/me', { method: 'PUT', headers, body: JSON.stringify({ name: form.fullName, profileImage: form.profileImage }) }),
+        apiRequest('/providers/me', {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            bio: form.bio,
+            district: form.district,
+            city: form.city,
+            location: form.location,
+            yearsExperience: Number(form.yearsExperience || 0),
+            categories: form.categories.split(',').map((item) => item.trim()).filter(Boolean),
+          }),
         }),
-      });
-      updateCurrentUser(response?.data || {
-        name: form.fullName,
-        language: form.language,
-        profileImage: form.profileImage,
-        bio: form.bio,
-        district: form.district,
-        city: form.city,
-        location: form.location,
-      });
+      ]);
+      updateCurrentUser(userResponse?.data || { name: form.fullName, profileImage: form.profileImage });
     } catch (error) {
       setPhotoError(error.message || 'Profile changes could not be saved');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveAvailability(nextAvailability) {
+    if (!accessToken) return;
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    setForm((prev) => ({ ...prev, availability: nextAvailability }));
+    try {
+      await apiRequest('/providers/availability', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ availability: nextAvailability }),
+      });
+    } catch {
+      // optimistic UI
     }
   }
 
@@ -323,28 +319,38 @@ export default function CustomerSettingsPage() {
         <p className="text-slate-500 text-sm mt-1">Manage your account preferences and security settings.</p>
       </header>
 
-      <div className="flex gap-8 items-start">
-        <aside className="w-66 shrink-0">
-          <nav className="flex flex-col space-y-1.5">
+      <div className="grid grid-cols-12 gap-8 items-start">
+        <aside className="col-span-4 2xl:col-span-3">
+          <nav className="space-y-1">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-sm transition-all ${
                   activeTab === tab.key
                     ? 'font-semibold text-[#2F4DA0] bg-[#EEF2FF] border-r-[3px] border-[#2F4DA0]'
                     : 'font-medium text-slate-600 hover:bg-white'
                 }`}
+                onClick={() => setActiveTab(tab.key)}
+                type="button"
               >
                 <span className="material-symbols-outlined text-xl">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
           </nav>
+
+          <section className="mt-8 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Trust Level</p>
+            <h3 className="text-2xl font-bold text-slate-800 mb-3">Verification Status</h3>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-lg font-bold">
+              <span className="material-symbols-outlined text-lg">warning</span>
+              Pending
+            </div>
+            <p className="text-sm text-slate-500 mt-4">Complete verification to get the "Verified Provider" badge.</p>
+          </section>
         </aside>
 
-        <div className="flex-1 space-y-6">
+        <div className="col-span-8 2xl:col-span-9 space-y-6">
           {activeTab === 'profile' && loading ? (
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 space-y-2">
@@ -352,7 +358,7 @@ export default function CustomerSettingsPage() {
                 <Skeleton className="h-4 w-80" />
               </div>
               <div className="p-6 space-y-6">
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-6">
                   <Skeleton className="w-24 h-24 rounded-full" />
                   <div className="space-y-3 flex-1">
                     <div className="flex items-center gap-3">
@@ -365,15 +371,12 @@ export default function CustomerSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Skeleton className="h-16 w-full rounded-xl" />
                   <Skeleton className="h-16 w-full rounded-xl" />
-                </div>
-                <div className="grid grid-cols-[2fr_1fr_1fr] gap-4">
-                  <Skeleton className="h-16 w-full rounded-xl" />
                   <Skeleton className="h-16 w-full rounded-xl" />
                   <Skeleton className="h-16 w-full rounded-xl" />
                 </div>
                 <Skeleton className="h-16 w-full rounded-xl" />
                 <Skeleton className="h-32 w-full rounded-xl" />
-                <div className="flex justify-end gap-3 pt-5 border-t border-slate-100">
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
                   <Skeleton className="h-11 w-28 rounded-2xl" />
                   <Skeleton className="h-11 w-36 rounded-2xl" />
                 </div>
@@ -384,110 +387,101 @@ export default function CustomerSettingsPage() {
             <>
               <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <header className="p-6 border-b border-slate-100">
-                  <h2 className="text-lg font-bold">Profile Information</h2>
+                  <h2 className="text-lg font-bold text-slate-900">Profile Information</h2>
                   <p className="text-sm text-slate-500">Complete your profile to increase trust among customers.</p>
                 </header>
 
-                <div className="p-6">
-                  <div className="flex items-center gap-5 mb-8">
+                <form className="p-6 space-y-6" onSubmit={(event) => { event.preventDefault(); saveProfile(); }}>
+                  <div className="flex items-center gap-6">
                     <Avatar src={photoPreview || form.profileImage} name={form.fullName} className="w-24 h-24 rounded-full border border-slate-200" />
                     <div>
                       <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" className="hidden" onChange={onSelectPhoto} />
                       <div className="flex items-center gap-3">
-                        <button type="button" onClick={() => fileInputRef.current?.click()} className="px-5 py-2 rounded-xl bg-[#2F4DA0] text-white text-sm font-bold hover:opacity-90 transition-all">{photoUploading ? 'Uploading...' : 'Upload New Photo'}</button>
-                        <button type="button" onClick={removePhoto} className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-all">Remove</button>
+                        <button className="px-5 py-2 rounded-xl bg-[#2F4DA0] text-white text-sm font-bold hover:opacity-90" type="button" onClick={() => fileInputRef.current?.click()}>{photoUploading ? 'Uploading...' : 'Upload New Photo'}</button>
+                        <button className="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50" type="button" onClick={removePhoto}>Remove</button>
                       </div>
                       <p className="text-sm text-slate-500 mt-2">Recommended: Square JPG or PNG, minimum 400x400 pixels.</p>
                     </div>
                   </div>
 
-                  <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); saveProfile(); }}>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Full Name">
-                        <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" value={form.fullName} onChange={(event) => onField('fullName', event.target.value)} />
-                      </Field>
-                      <Field label="Email Address">
-                        <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" value={form.email} disabled />
-                      </Field>
-                    </div>
-
-                    <div className="grid grid-cols-[2fr_1fr_1fr] gap-4">
-                      <Field label="Language">
-                        <select className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" value={form.language} onChange={(event) => onField('language', event.target.value)}>
-                          <option value="en">English</option>
-                          <option value="si">Sinhala</option>
-                          <option value="ta">Tamil</option>
-                        </select>
-                      </Field>
-                      <Field label="District">
-                        <input className="w-full h-12 rounded-xl border-slate-200 bg-slate-50 text-sm text-slate-500" value={form.district} readOnly />
-                      </Field>
-                      <Field label="City">
-                        <input className="w-full h-12 rounded-xl border-slate-200 bg-slate-50 text-sm text-slate-500" value={form.city} readOnly />
-                      </Field>
-                    </div>
-
-                    <Field label="Search Location">
-                      <div className="relative">
-                        <input
-                          className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
-                          placeholder="Type your city or district in Sri Lanka"
-                          value={locationQuery}
-                          onBlur={() => window.setTimeout(() => setShowLocationSuggestions(false), 120)}
-                          onChange={(event) => {
-                            setLocationQuery(event.target.value);
-                            setShowLocationSuggestions(true);
-                          }}
-                          onFocus={() => setShowLocationSuggestions(true)}
-                        />
-                        {showLocationSuggestions && (locationSuggestions.length || locationLoading) ? (
-                          <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-                            {locationLoading ? (
-                              <div className="px-4 py-3 text-sm text-slate-500">Searching Sri Lanka locations...</div>
-                            ) : null}
-                            {locationSuggestions.map((location) => (
-                              <button
-                                key={`${location.label}-${location.coordinates.join(',')}`}
-                                className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
-                                onMouseDown={() => applyLocation(location)}
-                                type="button"
-                              >
-                                <p className="text-sm font-semibold text-slate-900">{location.city}</p>
-                                <p className="text-xs text-slate-400">{location.district}</p>
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Full Name">
+                      <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="text" value={form.fullName} onChange={(event) => onField('fullName', event.target.value)} />
                     </Field>
-
-                    <Field label="Bio / About Me">
-                      <textarea className="w-full rounded-xl border-slate-200 text-sm resize-none focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" rows={4} placeholder="Tell us about your preferences..." value={form.bio} onChange={(event) => onField('bio', event.target.value)} />
+                    <Field label="Email Address">
+                      <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="email" value={form.email} disabled />
                     </Field>
+                  </div>
 
-                    <div className="pt-5 border-t border-slate-100 flex justify-end gap-3">
-                      <button type="button" className="px-9 py-2.5 rounded-2xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-all">Cancel</button>
-                      <button type="submit" className="px-10 py-2.5 rounded-2xl bg-[#2F4DA0] text-white text-sm font-bold shadow-lg shadow-blue-400/20 hover:opacity-90 transition-all disabled:opacity-60" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Categories (comma separated)">
+                      <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="text" value={form.categories} onChange={(event) => onField('categories', event.target.value)} />
+                    </Field>
+                    <Field label="Years of Experience">
+                      <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="number" min="0" value={form.yearsExperience} onChange={(event) => onField('yearsExperience', event.target.value)} />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="District">
+                      <input className="w-full h-12 rounded-xl border-slate-200 bg-slate-50 text-sm text-slate-500" type="text" value={form.district} readOnly />
+                    </Field>
+                    <Field label="City">
+                      <input className="w-full h-12 rounded-xl border-slate-200 bg-slate-50 text-sm text-slate-500" type="text" value={form.city} readOnly />
+                    </Field>
+                  </div>
+
+                  <Field label="Search Location">
+                    <div className="relative">
+                      <input
+                        className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
+                        placeholder="Type your city or district in Sri Lanka"
+                        value={locationQuery}
+                        onBlur={() => window.setTimeout(() => setShowLocationSuggestions(false), 120)}
+                        onChange={(event) => {
+                          setLocationQuery(event.target.value);
+                          setShowLocationSuggestions(true);
+                        }}
+                        onFocus={() => setShowLocationSuggestions(true)}
+                        type="text"
+                      />
+                      {showLocationSuggestions && (locationSuggestions.length || locationLoading) ? (
+                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                          {locationLoading ? (
+                            <div className="px-4 py-3 text-sm text-slate-500">Searching Sri Lanka locations...</div>
+                          ) : null}
+                          {locationSuggestions.map((location) => (
+                            <button
+                              key={`${location.label}-${location.coordinates.join(',')}`}
+                              className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
+                              onMouseDown={() => applyLocation(location)}
+                              type="button"
+                            >
+                              <p className="text-sm font-semibold text-slate-900">{location.city}</p>
+                              <p className="text-xs text-slate-400">{location.district}</p>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  </form>
-                </div>
-              </section>
+                  </Field>
 
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="text-lg font-bold mb-5">Services & Availability</h2>
-                <PreferenceRow id="profileAvailableNow" title="Available Now" description="Let providers know you are available to receive services right now." enabled={toggles.profileAvailableNow} onChange={() => onToggle('profileAvailableNow')} />
-              </section>
+                  <Field label="Bio / About Me">
+                    <textarea className="w-full rounded-xl border-slate-200 text-sm resize-none focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" rows={4} placeholder="Tell us about your expertise and services..." value={form.bio} onChange={(event) => onField('bio', event.target.value)} />
+                  </Field>
 
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="text-lg font-bold mb-5">Notification Preferences</h2>
-                <div className="space-y-5">
-                  {notificationRows.map((row) => (
-                    <PreferenceRow key={row.key} id={row.key} title={row.title} description={row.description} enabled={toggles[row.key]} onChange={() => onToggle(row.key)} />
-                  ))}
-                </div>
+                  <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
+                    <button className="px-9 py-2.5 rounded-2xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50" type="button">Cancel</button>
+                    <button className="px-10 py-2.5 rounded-2xl bg-[#2F4DA0] text-white text-sm font-bold shadow-lg shadow-blue-400/20 hover:opacity-90 disabled:opacity-60" type="submit" disabled={saving}>
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
               </section>
             </>
-          ) : (
+          ) : null}
+
+          {activeTab === 'security' ? (
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <header className="p-6 border-b border-slate-100">
                 <h2 className="text-lg font-bold text-slate-900">Change Password</h2>
@@ -497,10 +491,10 @@ export default function CustomerSettingsPage() {
                     : 'Create a password for email sign-in on this account.'}
                 </p>
               </header>
-              <form className="p-6 max-w-[760px] space-y-5" autoComplete="off" onSubmit={(event) => { event.preventDefault(); updatePasswordSettings(); }}>
+              <form className="p-6 max-w-[720px] space-y-5" autoComplete="off" onSubmit={(event) => { event.preventDefault(); updatePasswordSettings(); }}>
                 {requiresCurrentPassword ? (
                   <PasswordField
-                    id="current-password"
+                    id="provider-current-password"
                     label="Current Password"
                     value={passwordForm.currentPassword}
                     onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))}
@@ -509,23 +503,26 @@ export default function CustomerSettingsPage() {
                 ) : null}
                 <div className="space-y-2">
                   <PasswordField
-                    id="new-password"
+                    id="provider-new-password"
                     label="New Password"
                     value={passwordForm.newPassword}
                     onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))}
                     autoComplete="new-password"
                   />
                   <div className="pt-1.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs font-bold ${passwordStrength.textClass}`}>{passwordStrength.label}</span>
-                    </div>
-                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${passwordStrength.barClass}`} style={{ width: `${passwordStrength.percent}%` }} />
+                    <span className={`text-sm font-bold ${passwordStrength.textClass}`}>
+                      {passwordStrength.label}
+                    </span>
+                    <div className="mt-1.5 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${passwordStrength.barClass}`}
+                        style={{ width: `${passwordStrength.percent}%` }}
+                      />
                     </div>
                   </div>
                 </div>
                 <PasswordField
-                  id="confirm-password"
+                  id="provider-confirm-password"
                   label="Confirm New Password"
                   value={passwordForm.confirmPassword}
                   onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))}
@@ -537,13 +534,34 @@ export default function CustomerSettingsPage() {
                   </p>
                 ) : null}
                 <div className="pt-4">
-                  <button type="submit" className="px-7 py-2.5 rounded-2xl bg-[#2F4DA0] text-white text-sm font-bold shadow-lg shadow-blue-400/25 hover:opacity-90 transition-all disabled:opacity-60" disabled={passwordSaving}>
+                  <button className="px-8 py-3 rounded-2xl bg-[#2F4DA0] text-white text-sm font-bold shadow-lg shadow-blue-400/25 hover:opacity-90 transition-all disabled:opacity-60" type="submit" disabled={passwordSaving}>
                     {passwordSaving ? 'Updating...' : 'Update Password'}
                   </button>
                 </div>
               </form>
             </section>
-          )}
+          ) : null}
+
+          {activeTab === 'services' ? (
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h2 className="text-lg font-bold mb-5">Services & Availability</h2>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Available Now</h3>
+                  <p className="text-sm text-slate-500">Allow customers to send requests instantly when you are online.</p>
+                </div>
+                <Toggle checked={form.availability === 'online'} onChange={() => saveAvailability(form.availability === 'online' ? 'offline' : 'online')} />
+              </div>
+            </section>
+          ) : null}
+
+          {activeTab === 'verification' ? (
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+              <span className="material-symbols-outlined text-4xl text-slate-300">verified_user</span>
+              <h2 className="mt-3 text-lg font-bold text-slate-800">Verification</h2>
+              <p className="text-sm text-slate-500 mt-1">Verification details are loaded from your provider profile and can be expanded in the next step.</p>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>
@@ -586,6 +604,7 @@ function PasswordField({ id, label, value, onChange, autoComplete = 'off' }) {
         <input
           id={id}
           name={`${id}-field`}
+          className="password-no-native w-full h-12 rounded-xl border-slate-200 text-sm pr-11 focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
           type={showPassword ? 'text' : 'password'}
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -593,9 +612,8 @@ function PasswordField({ id, label, value, onChange, autoComplete = 'off' }) {
           readOnly={!canType}
           autoComplete={autoComplete}
           data-lpignore="true"
-          className="password-no-native w-full h-12 rounded-xl border-slate-200 text-sm pr-11 focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
         />
-        <button type="button" className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Show password" onClick={() => setShowPassword((prev) => !prev)}>
+        <button className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" type="button" onClick={() => setShowPassword((prev) => !prev)}>
           <span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
         </button>
       </div>
@@ -603,19 +621,13 @@ function PasswordField({ id, label, value, onChange, autoComplete = 'off' }) {
   );
 }
 
-function PreferenceRow({ id, title, description, enabled, onChange }) {
+function Toggle({ checked, onChange }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-b-0">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <p className="text-sm text-slate-500">{description}</p>
-      </div>
-      <label className="relative inline-flex items-center cursor-pointer" htmlFor={id}>
-        <input id={id} type="checkbox" className="sr-only peer" checked={enabled} onChange={onChange} />
-        <span className="w-11 h-6 bg-slate-200 rounded-full transition-colors peer-checked:bg-[#2F4DA0]" />
-        <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white border border-slate-300 transition-transform peer-checked:translate-x-5" />
-      </label>
-    </div>
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
+      <span className="w-11 h-6 bg-slate-200 rounded-full transition-colors peer-checked:bg-[#2F4DA0]" />
+      <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white border border-slate-300 transition-transform peer-checked:translate-x-5" />
+    </label>
   );
 }
 

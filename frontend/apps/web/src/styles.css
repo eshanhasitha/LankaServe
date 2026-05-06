@@ -1,7 +1,208 @@
-@media (max-width: 1024px) {
-  .app-sidebar { display: none; }
-  .app-main { margin-left: 0 !important; }
+@import "tailwindcss";
+
+/* ─── Global font ─── */
+:root {
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
-@media (max-width: 640px) {
-  .stats-grid { grid-template-columns: 1fr !important; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ─── Material Symbols icon rendering ─── */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* ─── Default input base style ─────────────────────────────────────────────
+   Placed in @layer base so Tailwind utility classes (border-0, etc.) override
+   it. Unlayered class-specific selectors (.login-form input, etc.) still win.
+────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  input {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #c5c9d4;
+  }
+}
+
+/* Hide browser-native password reveal/clear icons when we render our own eye button */
+input.password-no-native::-ms-reveal,
+input.password-no-native::-ms-clear {
+  display: none;
+}
+
+input.password-no-native::-webkit-credentials-auto-fill-button,
+input.password-no-native::-webkit-textfield-decoration-container {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ─── Provider layout shell — ProviderLayout.jsx ─── */
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.app-main {
+  padding: 2rem;
+}
+
+/* ─── Sidebar component — Sidebar.jsx ─── */
+.sidebar {
+  background: #111a2b;
+  color: #fff;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-title {
+  margin: 0 0 1rem 0;
+}
+
+.sidebar-brand {
+  color: #21489f;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 1rem;
+  flex: 1;
+}
+
+.sidebar-label {
+  margin: 0 0 0.5rem 0;
+  color: #8fa0c6;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.sidebar-section {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar-link {
+  color: #d3ddf7;
+  text-decoration: none;
+  padding: 0.55rem 0.65rem;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sidebar-link.active,
+.sidebar-link:hover {
+  background: #243755;
+  color: #fff;
+}
+
+.sidebar-link-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sidebar-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  color: inherit;
+}
+
+.sidebar-badge {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #2b67ff;
+  color: #fff;
+  font-size: 0.73rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.sidebar-profile-card {
+  border: 1px solid #e2e8f4;
+  border-radius: 14px;
+  padding: 0.8rem;
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.sidebar-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffc9a1, #cc8e61);
+  flex-shrink: 0;
+}
+
+.sidebar-footer-links {
+  margin-top: auto;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sidebar-footer-link {
+  text-decoration: none;
+  color: #516288;
+  padding: 0.45rem 0.2rem;
+}
+
+.logout-btn {
+  border: 1px solid #35558f;
+  color: #fff;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0.6rem;
+  cursor: pointer;
+}
+
+.sidebar-logout-danger {
+  margin-top: 0.4rem;
+  color: #e14646;
+  border: 1px solid #f2b8b8;
+}
+
+/* ─── Placeholder page — PlaceholderPage.jsx ─── */
+.content-page {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.content-page code {
+  background: #eef2fa;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+  }
 }
