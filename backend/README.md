@@ -7,22 +7,22 @@ Production-ready Node.js backend for LankaServe service marketplace.
 ```text
 backend/
 +-- docs/
-ï¿½   +-- deployment/
-ï¿½   +-- postman/
-ï¿½   +-- testing-guide.md
+¦   +-- deployment/
+¦   +-- postman/
+¦   +-- testing-guide.md
 +-- scripts/
 +-- src/
-ï¿½   +-- config/
-ï¿½   +-- controllers/
-ï¿½   +-- cron/
-ï¿½   +-- middleware/
-ï¿½   +-- models/
-ï¿½   +-- routes/
-ï¿½   +-- services/
-ï¿½   +-- utils/
+¦   +-- config/
+¦   +-- controllers/
+¦   +-- cron/
+¦   +-- middleware/
+¦   +-- models/
+¦   +-- routes/
+¦   +-- services/
+¦   +-- utils/
 +-- tests/
-ï¿½   +-- integration/
-ï¿½   +-- unit/
+¦   +-- integration/
+¦   +-- unit/
 +-- Dockerfile
 +-- ecosystem.config.js
 +-- nginx.conf
@@ -70,7 +70,6 @@ backend/
 - PM2: `pm2 start ecosystem.config.js`
 - Nginx reverse proxy: `nginx.conf`
 - Render guide: `docs/deployment/render.md`
-- Cloudflare guide: `docs/deployment/cloudflare.md`
 - Atlas guide: `docs/deployment/mongodb-atlas.md`
 
 ## Security Checklist
