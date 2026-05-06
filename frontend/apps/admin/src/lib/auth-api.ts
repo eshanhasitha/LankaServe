@@ -1,25 +1,54 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+﻿import { apiRequest } from './api.ts';
 
-export type User = {
-  _id: string;
-  name: string;
-  email: string;
-  role: 'customer' | 'provider' | 'admin';
-};
+const STORAGE_KEY = 'lanka.admin.auth';
 
-export type Session = {
-  user: User;
-  accessToken: string;
-};
+export function readSession() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
 
-export async function login(firebaseIdToken: string): Promise<Session> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+export function saveSession(session) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+}
+
+export function clearSession() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export async function loginAdmin(email, password) {
+  const result = await apiRequest('/admin-auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ firebaseIdToken }),
+    body: JSON.stringify({ email, password }),
   });
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || 'Login failed');
-  return data.data;
+  return result.data;
 }
+
+export async function refreshAdminSession(refreshToken) {
+  const result = await apiRequest('/admin-auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  return result.data;
+}
+
+export async function logoutAdmin(accessToken, refreshToken) {
+  if (!accessToken || !refreshToken) return;
+
+  await apiRequest('/admin-auth/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+}
+
