@@ -1,37 +1,18 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../lib/auth-context';
+﻿import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../lib/auth-context.tsx';
 
-type Props = {
-  children: JSX.Element;
-  allowedRoles?: Array<'customer' | 'provider' | 'admin'>;
-};
+export default function ProtectedRoute({ allowedRoles, children }) {
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
 
-export default function ProtectedRoute({ children, allowedRoles }: Props) {
-  const { user } = useAuth();
-
-  if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/login" replace />;
-
-  return children;
-}
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../lib/auth-context';
-import type { UserRole } from '../lib/auth-api';
-
-export default function ProtectedRoute({
-  children,
-  allowedRoles,
-}: {
-  children: JSX.Element;
-  allowedRoles?: UserRole[];
-}) {
-  const { user } = useAuth();
-
-  if (!user) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return children;
 }
+
