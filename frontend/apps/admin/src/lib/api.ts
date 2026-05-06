@@ -1,16 +1,22 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const s = JSON.parse(localStorage.getItem('lanka.admin.auth') || 'null');
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
+export async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      ...(s?.accessToken ? { Authorization: `Bearer ${s.accessToken}` } : {}),
-      ...(init.headers || {}),
+      ...(options.headers || {}),
     },
+    ...options,
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json?.message || 'Request failed');
-  return json;
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const error = new Error(payload?.message || 'Request failed');
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
 }

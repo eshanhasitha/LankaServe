@@ -1,50 +1,181 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { login } from './auth-api';
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  clearSession,
+  loginAdmin,
+  logoutAdmin,
+  readSession,
+  refreshAdminSession,
+  saveSession,
+} from './auth-api.ts';
+import { apiRequest } from './api.ts';
 
-type Session = {
-  user: { _id: string; role: string; name: string; email: string };
-  accessToken: string;
-};
+const AdminAuthContext = createContext(null);
+let inFlightRefresh = null;
+let inFlightRefreshToken = null;
 
-type CtxType = {
-  session: Session | null;
-  loginWithToken: (t: string) => Promise<void>;
-  logout: () => void;
-};
+function normalizeSessionPayload(data, previousSession = null) {
+  if (!data) return previousSession;
 
-const KEY = 'lanka.admin.auth';
-const Ctx = createContext<CtxType | null>(null);
+  return {
+    admin: data.admin ?? previousSession?.admin ?? null,
+    accessToken: data.accessToken ?? previousSession?.accessToken ?? null,
+    refreshToken: data.refreshToken ?? previousSession?.refreshToken ?? null,
+  };
+}
 
-export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(() => {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+async function refreshSessionOnce(refreshToken) {
+  if (!refreshToken) {
+    throw new Error('Admin refresh token is missing');
+  }
+
+  if (inFlightRefresh && inFlightRefreshToken === refreshToken) {
+    return inFlightRefresh;
+  }
+
+  inFlightRefreshToken = refreshToken;
+  inFlightRefresh = refreshAdminSession(refreshToken).finally(() => {
+    if (inFlightRefreshToken === refreshToken) {
+      inFlightRefresh = null;
+      inFlightRefreshToken = null;
+    }
   });
 
+  return inFlightRefresh;
+}
+
+export function AdminAuthProvider({ children }) {
+  const [session, setSession] = useState(() => readSession());
+  const [initialized, setInitialized] = useState(false);
+
   useEffect(() => {
-    if (session) {
-      localStorage.setItem(KEY, JSON.stringify(session));
-    } else {
-      localStorage.removeItem(KEY);
+    let active = true;
+
+    async function bootstrap() {
+      const current = readSession();
+      if (!current?.refreshToken) {
+        if (active) setInitialized(true);
+        return;
+      }
+
+      try {
+        const refreshed = await refreshSessionOnce(current.refreshToken);
+        const nextSession = normalizeSessionPayload(refreshed, current);
+        saveSession(nextSession);
+        if (active) setSession(nextSession);
+      } catch {
+        const latestSession = readSession();
+
+        // If another concurrent refresh already rotated tokens, keep that session.
+        if (latestSession?.refreshToken && latestSession.refreshToken !== current.refreshToken) {
+          if (active) setSession(latestSession);
+        } else {
+          clearSession();
+          if (active) setSession(null);
+        }
+      } finally {
+        if (active) setInitialized(true);
+      }
+    }
+
+    bootstrap();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const loginWithCredentials = useCallback(async (email, password) => {
+    const data = await loginAdmin(email, password);
+    const nextSession = normalizeSessionPayload(data);
+    saveSession(nextSession);
+    setSession(nextSession);
+    return nextSession;
+  }, []);
+
+  const authorizedRequest = useCallback(async (path, options = {}) => {
+    if (!session?.accessToken) {
+      throw new Error('Admin session not found');
+    }
+
+    try {
+      return await apiRequest(path, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+    } catch (error) {
+      if (error?.status !== 401 || !session?.refreshToken) {
+        throw error;
+      }
+
+      try {
+        const refreshed = await refreshSessionOnce(session.refreshToken);
+        const nextSession = normalizeSessionPayload(refreshed, session);
+        saveSession(nextSession);
+        setSession(nextSession);
+
+        return apiRequest(path, {
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            Authorization: `Bearer ${nextSession.accessToken}`,
+          },
+        });
+      } catch (refreshError) {
+        const latestSession = readSession();
+
+        if (
+          latestSession?.accessToken &&
+          latestSession?.refreshToken &&
+          latestSession.refreshToken !== session.refreshToken
+        ) {
+          setSession(latestSession);
+          return apiRequest(path, {
+            ...options,
+            headers: {
+              ...(options.headers || {}),
+              Authorization: `Bearer ${latestSession.accessToken}`,
+            },
+          });
+        }
+
+        clearSession();
+        setSession(null);
+        throw refreshError;
+      }
     }
   }, [session]);
 
-  return (
-    <Ctx.Provider
-      value={{
-        session,
-        loginWithToken: async (t) => setSession(await login(t)),
-        logout: () => setSession(null),
-      }}
-    >
-      {children}
-    </Ctx.Provider>
-  );
+  const logoutUser = useCallback(async () => {
+    try {
+      await logoutAdmin(session?.accessToken, session?.refreshToken);
+    } finally {
+      clearSession();
+      setSession(null);
+    }
+  }, [session?.accessToken, session?.refreshToken]);
+
+  const value = useMemo(() => ({
+    admin: session?.admin ?? null,
+    accessToken: session?.accessToken ?? null,
+    refreshToken: session?.refreshToken ?? null,
+    isAuthenticated: Boolean(session?.accessToken && session?.admin),
+    initialized,
+    loginWithCredentials,
+    authorizedRequest,
+    logoutUser,
+  }), [authorizedRequest, initialized, loginWithCredentials, logoutUser, session]);
+
+  return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }
 
 export function useAdminAuth() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useAdminAuth must be used inside AdminAuthProvider');
-  return ctx;
+  const context = useContext(AdminAuthContext);
+  if (!context) {
+    throw new Error('useAdminAuth must be used inside AdminAuthProvider');
+  }
+  return context;
 }
+
