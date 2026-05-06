@@ -1,75 +1,59 @@
 # Cloudflare Deployment (Backend)
 
-This backend is a long-running Node.js server (Express + MongoDB + cron + Socket.IO).
-Cloudflare Workers are for serverless functions and cannot run this type of app directly without major rewrites (e.g., converting to edge functions, which loses cron/Socket.IO features).
+This backend can be deployed to Cloudflare Workers using the Worker entrypoint at `src/worker.js` and `wrangler.jsonc`.
 
-Recommended architecture: Deploy to a VPS/server and use Cloudflare Tunnel to expose it securely without public ports.
+Use this when you want:
+- edge deployment via `wrangler deploy`
+- Cron Triggers managed by Cloudflare
+- no VPS process manager
 
-## Prerequisites
+## Option A: Deploy as Cloudflare Worker (recommended for this repo state)
 
-- VPS/server (e.g., DigitalOcean Droplet, AWS EC2, Linode) with Node.js installed.
-- Domain added to Cloudflare (nameservers updated).
-- `cloudflared` installed on your VPS.
-- Backend code cloned and `.env` configured on VPS.
+### 1) Required files
 
-## 1) Deploy Backend to VPS
+- `wrangler.jsonc`
+- `src/worker.js`
 
-1. SSH into your VPS.
-2. Clone repo: `git clone https://github.com/eshanhasitha/LankaServe.git && cd LankaServe/backend`.
-3. Install dependencies: `npm install`.
-4. Create `.env` with production variables (see below).
-5. Start app: `npm start` (or use PM2: `npm install -g pm2 && pm2 start ecosystem.config.js`).
-6. Verify locally: `curl http://localhost:5000/api/health` (should return healthy JSON).
+Both are already included in this backend.
 
-## 2) Set Up Cloudflare Tunnel
+### 2) Configure secrets/vars in Cloudflare
 
-1. On your VPS, install `cloudflared`: Follow [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/).
-2. Authenticate: `cloudflared tunnel login`.
-3. Create tunnel: `cloudflared tunnel create api-tunnel`.
-4. Create config file `/etc/cloudflared/config.yaml`:
-   ```
-   tunnel: api-tunnel
-   credentials-file: /root/.cloudflared/api-tunnel.json
-   ingress:
-     - hostname: api.yourdomain.com
-       service: http://localhost:5000
-     - service: http_status:404
-   ```
-5. Run tunnel: `cloudflared tunnel run api-tunnel` (or as service for persistence).
+Set required secrets for production:
 
-## 3) Connect Domain in Cloudflare
+- `MONGO_URI`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
 
-1. In Cloudflare Dashboard, go to Zero Trust > Networks > Tunnels.
-2. Add the tunnel and map `api.yourdomain.com` to it.
-3. In DNS, ensure `api.yourdomain.com` points to Cloudflare (CNAME to your domain or tunnel endpoint).
-4. SSL/TLS: Set to `Full (strict)`, enable `Always Use HTTPS`.
+And optional vars as needed:
 
-## 4) Cloudflare Settings
+- `API_PREFIX`
+- `CORS_ORIGINS`
+- `LOG_LEVEL`
+- Firebase/Cloudinary keys if used by your routes
 
-- **Caching**: Bypass for `api.yourdomain.com/*`.
-- **Network**: WebSockets enabled.
-- **Security**: WAF on, rate limiting on auth paths.
+### 3) Deploy
 
-## 5) Environment Variables (Production)
+From `backend/`:
 
-Minimum required:
+```bash
+npx wrangler deploy
+```
 
-- `NODE_ENV=production`
-- `MONGO_URI=...`
-- `JWT_ACCESS_SECRET=...`
-- `JWT_REFRESH_SECRET=...`
+### 4) Verify
 
-Recommended:
+- `https://<your-worker-domain>/api/health`
+- confirm Cron Triggers are attached in Worker settings
 
-- `CORS_ORIGINS=https://your-frontend-domain.com`
-- `PORT=5000`
-- `API_PREFIX=/api`
+## Option B: Deploy Node server + Cloudflare Tunnel
 
-## 6) Verify
+If you need classic long-running process hosting semantics, use VPS + `cloudflared` tunnel.
 
-- `https://api.yourdomain.com/api/health` should return healthy.
-- Test API and Socket.IO.
+High-level:
+1. Run backend on VPS (PM2/systemd).
+2. Create and run Cloudflare Tunnel.
+3. Map `api.yourdomain.com` to tunnel in Cloudflare.
 
-## Scaling Note
+## Notes
 
-Cron jobs run in the Node process. Scale carefully or move cron to a separate service.
+- Cron Triggers in Workers run on UTC.
+- If a dependency is not Worker-compatible, keep Option B for production until replaced.
