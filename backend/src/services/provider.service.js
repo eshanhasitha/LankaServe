@@ -25,7 +25,6 @@ const DISTRICT_TO_PROVINCE = {
     monaragala: 'Uva',
     mullaitivu: 'Northern',
     nuwaraeliya: 'Central',
-    nuwaraeliya: 'Central',
     polonnaruwa: 'North Central',
     puttalam: 'North Western',
     ratnapura: 'Sabaragamuwa',
