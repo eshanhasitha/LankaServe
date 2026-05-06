@@ -1,42 +1,82 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { login, type Session, type UserRole } from './auth-api';
+﻿import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  SESSION_EVENT,
+  clearSession,
+  login,
+  logout,
+  persistSession,
+  readSession,
+  register,
+} from './auth-api.ts';
 
-type AuthCtx = {
-  user: Session['user'] | null;
-  accessToken: string | null;
-  loginWithToken: (token: string) => Promise<void>;
-  logout: () => void;
-  hasRole: (roles: UserRole[]) => boolean;
-};
+const AuthContext = createContext(null);
 
-const Ctx = createContext<AuthCtx | null>(null);
-const KEY = 'lanka.web.auth';
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(() => {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) as Session : null;
-  });
+export function AuthProvider({ children }) {
+  const [session, setSession] = useState(() => readSession());
 
   useEffect(() => {
-    if (session) localStorage.setItem(KEY, JSON.stringify(session));
-    else localStorage.removeItem(KEY);
-  }, [session]);
+    const syncSession = () => {
+      setSession(readSession());
+    };
 
-  const value = useMemo<AuthCtx>(() => ({
-    user: session?.user || null,
-    accessToken: session?.accessToken || null,
-    loginWithToken: async (token: string) => setSession(await login(token)),
-    logout: () => setSession(null),
-    hasRole: (roles) => !!session?.user && roles.includes(session.user.role),
+    window.addEventListener('storage', syncSession);
+    window.addEventListener(SESSION_EVENT, syncSession);
+
+    return () => {
+      window.removeEventListener('storage', syncSession);
+      window.removeEventListener(SESSION_EVENT, syncSession);
+    };
+  }, []);
+
+  const value = useMemo(() => ({
+    user: session?.user ?? null,
+    accessToken: session?.accessToken ?? null,
+    refreshToken: session?.refreshToken ?? null,
+    isAuthenticated: Boolean(session?.accessToken && session?.user),
+
+    async loginWithToken(firebaseIdToken) {
+      const data = await login(firebaseIdToken);
+      persistSession(data);
+      setSession(data);
+      return data;
+    },
+
+    async registerWithToken(firebaseIdToken, role, providerProfile) {
+      const data = await register(firebaseIdToken, role, providerProfile);
+      persistSession(data);
+      setSession(data);
+      return data;
+    },
+
+    async logoutCurrentUser() {
+      try {
+        await logout(session?.accessToken, session?.refreshToken);
+      } finally {
+        clearSession();
+        setSession(null);
+      }
+    },
+
+    updateCurrentUser(nextUser) {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const nextSession = { ...prev, user: { ...(prev.user || {}), ...(nextUser || {}) } };
+        persistSession(nextSession);
+        return nextSession;
+      });
+    },
   }), [session]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth must be used inside AuthProvider');
+  }
+
+  return context;
 }
+
