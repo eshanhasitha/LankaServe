@@ -12,6 +12,9 @@ import { apiRequest } from './api.ts';
 const AdminAuthContext = createContext(null);
 let inFlightRefresh = null;
 let inFlightRefreshToken = null;
+type AuthorizedRequestOptions = RequestInit & {
+  headers?: HeadersInit;
+};
 
 function normalizeSessionPayload(data, previousSession = null) {
   if (!data) return previousSession;
@@ -92,7 +95,7 @@ export function AdminAuthProvider({ children }) {
     return nextSession;
   }, []);
 
-  const authorizedRequest = useCallback(async (path, options = {}) => {
+  const authorizedRequest = useCallback(async (path, options: AuthorizedRequestOptions = {}) => {
     if (!session?.accessToken) {
       throw new Error('Admin session not found');
     }

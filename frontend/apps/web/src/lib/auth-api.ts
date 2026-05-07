@@ -71,7 +71,11 @@ export function clearSession() {
 
 export { SESSION_EVENT };
 
-async function fetchJson(path, options = {}) {
+type AuthRequestOptions = RequestInit & {
+  headers?: HeadersInit;
+};
+
+async function fetchJson(path, options: AuthRequestOptions = {}) {
   const { headers: optionHeaders, ...restOptions } = options;
   let response;
   const controller = new AbortController();

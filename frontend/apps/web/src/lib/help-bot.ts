@@ -57,6 +57,8 @@ function baseActions(role) {
 function resolveIntent(text, role) {
   const safeRole = normalizeRole(role);
   const routes = ROLE_BASE_ROUTES[safeRole];
+  const providerRoutes = ROLE_BASE_ROUTES.provider;
+  const customerRoutes = ROLE_BASE_ROUTES.customer;
 
   if (!text) {
     return {
@@ -77,7 +79,10 @@ function resolveIntent(text, role) {
       answer: 'I can quickly help with payments, verification, cancellations, disputes, and account settings.',
       actions: [
         action('Help Center', routes.helpCenter),
-        action(safeRole === 'provider' ? 'Browse Jobs' : 'Post a Service', safeRole === 'provider' ? routes.browseJobs : routes.postService),
+        action(
+          safeRole === 'provider' ? 'Browse Jobs' : 'Post a Service',
+          safeRole === 'provider' ? providerRoutes.browseJobs : customerRoutes.postService
+        ),
       ],
     };
   }
@@ -97,7 +102,7 @@ function resolveIntent(text, role) {
       return {
         answer: 'Provider payouts are processed after job completion is confirmed. You can monitor payout status from the earnings section.',
         actions: [
-          action('View Earnings', routes.earnings),
+          action('View Earnings', providerRoutes.earnings),
           action('Open My Jobs', routes.myJobs),
         ],
       };
@@ -156,8 +161,8 @@ function resolveIntent(text, role) {
     return {
       answer: 'You can browse new opportunities and manage incoming requests from the provider workspace.',
       actions: [
-        action('Browse Jobs', routes.browseJobs),
-        action('Job Requests', routes.jobRequests),
+        action('Browse Jobs', providerRoutes.browseJobs),
+        action('Job Requests', providerRoutes.jobRequests),
       ],
     };
   }
@@ -166,8 +171,8 @@ function resolveIntent(text, role) {
     return {
       answer: 'Create a clear service request with budget and timeline, then compare providers before confirming the booking.',
       actions: [
-        action('Post a Service', routes.postService),
-        action('Find Providers', routes.findProviders),
+        action('Post a Service', customerRoutes.postService),
+        action('Find Providers', customerRoutes.findProviders),
       ],
     };
   }

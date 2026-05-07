@@ -258,17 +258,17 @@ export default function AdminBadgeRulesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Minimum Rating</label>
-                  <input value={form.minRating} onChange={(event) => setForm((prev) => ({ ...prev, minRating: event.target.value }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" step="0.1" type="number" />
+                  <input value={form.minRating} onChange={(event) => setForm((prev) => ({ ...prev, minRating: Number(event.target.value) }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" step="0.1" type="number" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Min. Completed Jobs</label>
-                  <input value={form.minCompletedJobs} onChange={(event) => setForm((prev) => ({ ...prev, minCompletedJobs: event.target.value }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" type="number" />
+                  <input value={form.minCompletedJobs} onChange={(event) => setForm((prev) => ({ ...prev, minCompletedJobs: Number(event.target.value) }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" type="number" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Max Response Time (minutes)</label>
-                <input value={form.maxResponseTimeMinutes} onChange={(event) => setForm((prev) => ({ ...prev, maxResponseTimeMinutes: event.target.value }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" type="number" />
+                <input value={form.maxResponseTimeMinutes} onChange={(event) => setForm((prev) => ({ ...prev, maxResponseTimeMinutes: Number(event.target.value) }))} className="w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-(--primary)" type="number" />
               </div>
 
               <div className="flex items-center justify-between pt-2">

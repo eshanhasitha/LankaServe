@@ -296,7 +296,7 @@ export default function RegisterPage() {
                   <input
                     className={inputClass + ' pr-11'}
                     id="password"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder="Enter your password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

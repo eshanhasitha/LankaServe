@@ -10,7 +10,9 @@ import { reverseGeocodeLocation } from '../../lib/location.ts';
 import { SERVICE_CATEGORY_OPTIONS, normalizeServiceCategory } from '../../lib/service-categories.ts';
 import Skeleton from '../../components/Skeleton.tsx';
 
-const DEFAULT_CENTER = [79.8612, 6.9271];
+type LngLat = [number, number];
+
+const DEFAULT_CENTER: LngLat = [79.8612, 6.9271];
 const SRI_LANKA_BOUNDS = {
   minLng: 79,
   maxLng: 82.2,
@@ -48,7 +50,7 @@ const customerPin = L.divIcon({
   iconAnchor: [15, 15],
 });
 
-function haversineDistanceKm(origin, target) {
+function haversineDistanceKm(origin: LngLat | null, target: LngLat | null) {
   if (!origin || !target) return null;
 
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
@@ -68,7 +70,7 @@ function haversineDistanceKm(origin, target) {
   return earthRadiusKm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-function isFiniteCoordinatePair(coords) {
+function isFiniteCoordinatePair(coords: unknown): coords is LngLat {
   return (
     Array.isArray(coords) &&
     coords.length === 2 &&
@@ -77,7 +79,9 @@ function isFiniteCoordinatePair(coords) {
   );
 }
 
-function isWithinSriLankaBounds([lng, lat]) {
+function isWithinSriLankaBounds(coords: unknown) {
+  if (!isFiniteCoordinatePair(coords)) return false;
+  const [lng, lat] = coords;
   return (
     lng >= SRI_LANKA_BOUNDS.minLng &&
     lng <= SRI_LANKA_BOUNDS.maxLng &&
@@ -86,11 +90,11 @@ function isWithinSriLankaBounds([lng, lat]) {
   );
 }
 
-function normalizeLngLat(coords, fallback = DEFAULT_CENTER) {
+function normalizeLngLat(coords: unknown, fallback: LngLat | null = DEFAULT_CENTER): LngLat | null {
   if (!isFiniteCoordinatePair(coords)) return fallback;
 
-  const first = [Number(coords[0]), Number(coords[1])];
-  const swapped = [first[1], first[0]];
+  const first: LngLat = [Number(coords[0]), Number(coords[1])];
+  const swapped: LngLat = [first[1], first[0]];
   const firstLooksLocal = isWithinSriLankaBounds(first);
   const swappedLooksLocal = isWithinSriLankaBounds(swapped);
 
@@ -101,7 +105,7 @@ function normalizeLngLat(coords, fallback = DEFAULT_CENTER) {
   return first;
 }
 
-function FitMapToPoints({ center, points }) {
+function FitMapToPoints({ center, points }: { center: LngLat | null; points: LngLat[] }) {
   const map = useMap();
 
   useEffect(() => {
@@ -130,7 +134,7 @@ export default function CustomerHeatmapPage() {
   const [providers, setProviders] = useState([]);
   const [draft, setDraft] = useState(defaultFilters);
   const [applied, setApplied] = useState(defaultFilters);
-  const [customerCoords, setCustomerCoords] = useState(DEFAULT_CENTER);
+  const [customerCoords, setCustomerCoords] = useState<LngLat>(DEFAULT_CENTER);
   const [customerLocationLabel, setCustomerLocationLabel] = useState('Your saved location');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -231,7 +235,7 @@ export default function CustomerHeatmapPage() {
   const mapPoints = useMemo(() => {
     const providerPoints = visibleProviders
       .map((provider) => normalizeLngLat(provider?.coordinates, null))
-      .filter((coords) => coords && isWithinSriLankaBounds(coords));
+      .filter((coords): coords is LngLat => Boolean(coords && isWithinSriLankaBounds(coords)));
     const customerPoint = normalizeLngLat(customerCoords, DEFAULT_CENTER);
     return [customerPoint, ...providerPoints];
   }, [customerCoords, visibleProviders]);
@@ -263,7 +267,7 @@ export default function CustomerHeatmapPage() {
     });
 
     const zones = Array.from(buckets.values()).map((bucket) => ({
-      center: [bucket.latSum / bucket.count, bucket.lngSum / bucket.count],
+      center: [bucket.latSum / bucket.count, bucket.lngSum / bucket.count] as LngLat,
       count: bucket.count,
       weight: bucket.weight,
     }));
@@ -281,17 +285,17 @@ export default function CustomerHeatmapPage() {
   }, [visibleProviders]);
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto space-y-6">
+    <div className="mx-auto max-w-[1440px] space-y-4 p-4 sm:space-y-6 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">Service Heatmap</h1>
-        <p className="text-slate-500 text-sm">Explore nearby providers and service coverage in your area.</p>
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Service Heatmap</h1>
+        <p className="text-sm text-slate-500">Explore nearby providers and service coverage in your area.</p>
       </header>
 
-      <section className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-6">
-        <div className="flex flex-col gap-1">
+      <section className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm sm:gap-6">
+        <div className="flex w-full flex-col gap-1 sm:w-auto">
           <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Category</label>
           <select
-            className="border-slate-200 rounded-lg text-sm focus:ring-[#2F4DA0] focus:border-[#2F4DA0] min-w-[180px]"
+            className="min-w-0 rounded-lg border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0] sm:min-w-[180px]"
             value={draft.category}
             onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
           >
@@ -304,7 +308,7 @@ export default function CustomerHeatmapPage() {
           </select>
         </div>
 
-        <div className="flex flex-col gap-1 flex-1 max-w-[200px]">
+        <div className="flex w-full flex-col gap-1 sm:max-w-[240px] sm:flex-1">
           <div className="flex justify-between">
             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Distance</label>
             <span className="text-[10px] font-bold text-[#2F4DA0]">{draft.distance}km</span>
@@ -319,10 +323,10 @@ export default function CustomerHeatmapPage() {
           />
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex w-full flex-col gap-1 sm:w-auto">
           <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Min Rating</label>
           <select
-            className="border-slate-200 rounded-lg text-sm focus:ring-[#2F4DA0] focus:border-[#2F4DA0]"
+            className="rounded-lg border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
             value={draft.minRating}
             onChange={(event) => setDraft((prev) => ({ ...prev, minRating: Number(event.target.value) }))}
           >
@@ -332,7 +336,7 @@ export default function CustomerHeatmapPage() {
           </select>
         </div>
 
-        <div className="flex items-center gap-3 pt-4">
+        <div className="flex w-full items-center gap-3 pt-0 sm:w-auto sm:pt-4">
           <span className="text-sm font-medium text-slate-600">Available Now</span>
           <button
             className={`w-11 h-6 rounded-full relative transition-all ${draft.availableNow ? 'bg-[#2F4DA0]' : 'bg-slate-200'}`}
@@ -344,7 +348,7 @@ export default function CustomerHeatmapPage() {
         </div>
 
         <button
-          className="ml-auto bg-[#2F4DA0] text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-800 transition-colors shadow-sm"
+          className="w-full rounded-lg bg-[#2F4DA0] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 sm:ml-auto sm:w-auto"
           onClick={() => setApplied(draft)}
           type="button"
         >
@@ -355,10 +359,10 @@ export default function CustomerHeatmapPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? (
         <div className="space-y-4">
-          <Skeleton className="h-[560px] w-full rounded-[20px]" />
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <Skeleton className="h-[320px] w-full rounded-[20px] sm:h-[420px] xl:h-[560px]" />
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+              <div key={index} className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex gap-3 items-center">
                   <Skeleton className="w-12 h-12 rounded-full" />
                   <div className="flex-1 space-y-2">
@@ -375,15 +379,15 @@ export default function CustomerHeatmapPage() {
         </div>
       ) : null}
 
-      <section className="rounded-[20px] border border-slate-200 overflow-hidden bg-white shadow-lg">
-        <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-lg">
+        <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">Real Map Preview</p>
             <p className="text-xs text-slate-400">Provider locations are rendered from saved backend coordinates.</p>
           </div>
           <p className="text-xs text-slate-500">{visibleProviders.length} providers visible</p>
         </div>
-        <div className="h-[560px] w-full">
+        <div className="h-[360px] w-full sm:h-[460px] xl:h-[560px]">
           <MapContainer
             center={[mapCenter[1], mapCenter[0]]}
             className="h-full w-full"
@@ -450,14 +454,14 @@ export default function CustomerHeatmapPage() {
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-bold">Recommended Nearby</h2>
           <p className="text-sm text-slate-500">Sorted by the current API result and active filters.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
           {visibleProviders.map((provider) => (
-            <div key={`card-${provider.id}`} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <div key={`card-${provider.id}`} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
               <div className="flex items-center gap-3 mb-4">
                 <Avatar src={provider.avatar} name={provider.name} className="w-12 h-12" />
                 <div>
@@ -472,7 +476,7 @@ export default function CustomerHeatmapPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Location</span>
-                  <span className="font-medium">{provider.locationLabel}</span>
+                  <span className="max-w-[65%] truncate text-right font-medium">{provider.locationLabel}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Distance</span>
@@ -490,7 +494,7 @@ export default function CustomerHeatmapPage() {
           ))}
 
           {!loading && visibleProviders.length === 0 ? (
-            <div className="col-span-full rounded-2xl border border-slate-100 bg-white p-10 text-center text-slate-500">
+            <div className="col-span-full rounded-2xl border border-slate-100 bg-white p-8 text-center text-slate-500 sm:p-10">
               No providers match the selected filters.
             </div>
           ) : null}

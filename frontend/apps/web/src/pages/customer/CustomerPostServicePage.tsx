@@ -77,8 +77,8 @@ function ClickToPick({ onSelect }) {
 }
 
 function LocationMap({ coordinates, onSelect }) {
-  const center = Array.isArray(coordinates) && coordinates.length === 2
-    ? [coordinates[1], coordinates[0]]
+  const center: [number, number] = Array.isArray(coordinates) && coordinates.length === 2
+    ? [Number(coordinates[1]), Number(coordinates[0])]
     : [DEFAULT_LOCATION.coordinates[1], DEFAULT_LOCATION.coordinates[0]];
 
   return (

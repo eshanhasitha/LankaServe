@@ -23,6 +23,11 @@ function formatTime(value) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function toTimestamp(value) {
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function buildThreadId(a, b, jobId = null) {
   const participantKey = [String(a), String(b)].sort().join('_');
   return jobId ? `job:${String(jobId)}:${participantKey}` : `direct:${participantKey}`;
@@ -76,7 +81,7 @@ export default function ProviderMessagesPage() {
           time: formatListTime(item.lastMessageAt),
           preview: item.lastMessage || 'No messages yet',
         }))
-        .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+        .sort((a, b) => toTimestamp(b.lastMessageAt) - toTimestamp(a.lastMessageAt));
       if (routeConversation && !sorted.some((item) => item.threadId === routeConversation.threadId)) {
         sorted = [routeConversation, ...sorted];
       }

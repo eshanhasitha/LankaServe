@@ -150,7 +150,7 @@ export default function AdminReportsPage() {
   }, [fetchAll]);
 
   const districtOptions = useMemo(() => {
-    const regions = new Set();
+    const regions = new Set<string>();
 
     if (reportType === 'providers') {
       sourceData.providers.forEach((provider) => {

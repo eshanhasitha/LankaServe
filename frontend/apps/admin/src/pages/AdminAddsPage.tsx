@@ -236,7 +236,7 @@ export default function AdminAddsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Description</label>
-                <textarea value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className="w-full resize-none rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition-all focus:bg-white focus:ring-2 focus:ring-(--primary)" placeholder="Explain the promotion details..." rows="3" />
+                <textarea value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className="w-full resize-none rounded-xl border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition-all focus:bg-white focus:ring-2 focus:ring-(--primary)" placeholder="Explain the promotion details..." rows={3} />
               </div>
 
               <div className="space-y-2">

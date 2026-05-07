@@ -36,7 +36,7 @@ function normalizeStatus(status) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function StarRating({ value, onChange, readOnly = false, sizeClass = 'text-3xl' }) {
+function StarRating({ value, onChange = undefined, readOnly = false, sizeClass = 'text-3xl' }) {
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: 5 }).map((_, index) => {
@@ -278,7 +278,13 @@ export default function CustomerJobDetailsPage() {
         await videoRef.current.play();
       }
 
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const BarcodeDetectorApi = (window as any).BarcodeDetector;
+      if (!BarcodeDetectorApi) {
+        setScannerMessage('Barcode scanner is not supported in this browser');
+        stopScanner();
+        return;
+      }
+      const detector = new BarcodeDetectorApi({ formats: ['qr_code'] });
       setScanning(true);
 
       scanIntervalRef.current = window.setInterval(async () => {

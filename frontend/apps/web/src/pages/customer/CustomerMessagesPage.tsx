@@ -23,6 +23,11 @@ function formatMessageTime(value) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function toTimestamp(value) {
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function buildDirectThreadId(a, b) {
   return `direct:${[String(a), String(b)].sort().join('_')}`;
 }
@@ -82,7 +87,7 @@ export default function CustomerMessagesPage() {
           time: formatListTime(item.lastMessageAt),
           preview: item.lastMessage || 'No messages yet',
         }))
-        .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+        .sort((a, b) => toTimestamp(b.lastMessageAt) - toTimestamp(a.lastMessageAt));
       if (routeConversation && !cleaned.some((item) => item.threadId === routeConversation.threadId)) {
         cleaned = [routeConversation, ...cleaned];
       }

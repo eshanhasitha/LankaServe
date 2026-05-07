@@ -126,10 +126,10 @@ export default function CustomerDashboardPage() {
   const hasSuggestions = useMemo(() => suggestedProviders.length > 0, [suggestedProviders]);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <section className="bg-linear-to-r from-[#2F4DA0] to-[#4A69BD] rounded-[18px] p-10 text-white relative overflow-hidden">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
+      <section className="relative overflow-hidden rounded-[18px] bg-linear-to-r from-[#2F4DA0] to-[#4A69BD] p-6 text-white sm:p-8 lg:p-10">
         <div className="relative z-10 max-w-lg">
-          <h1 className="text-3xl font-bold mb-2">Welcome Back, {firstName}!</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">Welcome Back, {firstName}!</h1>
           <p className="text-blue-100 opacity-90">{heroSubtext}</p>
         </div>
         <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-20 hidden lg:block">
@@ -137,8 +137,8 @@ export default function CustomerDashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+      <section className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-blue-50 text-[#2F4DA0] rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">history</span>
@@ -150,7 +150,7 @@ export default function CustomerDashboardPage() {
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">add_task</span>
@@ -162,7 +162,7 @@ export default function CustomerDashboardPage() {
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">manage_search</span>
@@ -177,14 +177,14 @@ export default function CustomerDashboardPage() {
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-bold">Active Jobs</h2>
           <Link className="text-[#2F4DA0] text-sm font-semibold hover:underline" to="/customer/my-jobs">View All</Link>
         </div>
-        <div className="flex gap-6 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-2 sm:gap-6 sm:pb-4">
           {loadingJobs ? (
             Array.from({ length: 3 }).map((_, index) => (
-              <div key={`job-skeleton-${index}`} className="min-w-[320px] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+              <div key={`job-skeleton-${index}`} className="min-w-[260px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3 sm:min-w-[320px] sm:p-5">
                 <div className="flex justify-between">
                   <Skeleton className="h-5 w-20 rounded" />
                   <Skeleton className="h-5 w-24 rounded-full" />
@@ -198,7 +198,7 @@ export default function CustomerDashboardPage() {
               </div>
             ))
           ) : activeJobs.map((job) => (
-            <div key={job._id} className="min-w-[320px] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <div key={job._id} className="min-w-[260px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:min-w-[320px] sm:p-5">
               <div className="flex justify-between items-start mb-4">
                 <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded">{job.category}</span>
                 <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${jobStatusClass(job.status)}`}>{jobStatusLabel(job.status)}</span>
@@ -235,7 +235,7 @@ export default function CustomerDashboardPage() {
             </div>
           ))}
           {!loadingJobs && activeJobs.length === 0 && (
-            <div className="min-w-[320px] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center h-[140px] gap-2">
+            <div className="flex h-[140px] min-w-[260px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:min-w-[320px]">
               <span className="material-symbols-outlined text-slate-300 text-3xl">work_off</span>
               <p className="text-sm text-slate-400">No active jobs yet.</p>
               <Link className="text-xs font-bold text-[#2F4DA0] hover:underline" to="/customer/post-service">Post a Service</Link>
@@ -245,17 +245,17 @@ export default function CustomerDashboardPage() {
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold">Suggested Providers</h2>
             <p className="text-sm text-slate-500">Matched to categories from your job requests.</p>
           </div>
           <Link className="text-[#2F4DA0] text-sm font-semibold hover:underline" to="/customer/find-providers">View All</Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
           {loadingJobs ? (
             Array.from({ length: 4 }).map((_, index) => (
-              <div key={`provider-skeleton-${index}`} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+              <div key={`provider-skeleton-${index}`} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
                 <div className="flex items-center gap-3">
                   <Skeleton className="w-14 h-14 rounded-full" />
                   <div className="flex-1 space-y-2">
@@ -270,7 +270,7 @@ export default function CustomerDashboardPage() {
             ))
           ) : hasSuggestions ? (
             suggestedProviders.map((provider) => (
-              <div key={provider.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div key={provider.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-start gap-3 mb-4">
                   <Avatar src={provider.profileImage} name={provider.name} className="w-14 h-14 rounded-full" />
                   <div className="min-w-0">
@@ -287,7 +287,7 @@ export default function CustomerDashboardPage() {
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-base text-amber-400">star</span>
                     <span>{provider.rating.toFixed(1)} rating</span>
-                    <span className="text-slate-300">â€¢</span>
+                    <span className="text-slate-300">&bull;</span>
                     <span>{provider.completedJobs}+ jobs</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -304,7 +304,7 @@ export default function CustomerDashboardPage() {
               </div>
             ))
           ) : (
-            <div className="md:col-span-2 xl:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm text-sm text-slate-500">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 text-sm text-slate-500 shadow-sm md:col-span-2 xl:col-span-4">
               No provider suggestions yet. Post more job requests to get category-based matches.
             </div>
           )}

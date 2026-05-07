@@ -3,12 +3,16 @@ import { API_BASE_URL, API_TIMEOUT_MS } from './api-config.ts';
 
 const STORAGE_KEY = 'lanka.web.auth';
 let refreshPromise = null;
+type ApiRequestOptions = RequestInit & {
+  headers?: HeadersInit;
+  notifyOnError?: boolean;
+};
 
-export async function apiRequest(path, options = {}) {
+export async function apiRequest(path, options: ApiRequestOptions = {}) {
   return requestWithAuth(path, options, true);
 }
 
-async function requestWithAuth(path, options = {}, allowRefresh = true) {
+async function requestWithAuth(path, options: ApiRequestOptions = {}, allowRefresh = true) {
   const { headers: optionHeaders, notifyOnError = true, ...restOptions } = options;
   const session = readSession();
   const authHeaders = session?.accessToken && !hasAuthorizationHeader(optionHeaders)
