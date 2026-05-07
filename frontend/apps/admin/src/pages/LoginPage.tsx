@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 
@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   const from = location.state?.from || '/dashboard';
 
-  async function onSubmit(event) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError('');
@@ -27,8 +27,8 @@ export default function LoginPage() {
     try {
       await loginWithCredentials(email, password);
       navigate(from, { replace: true });
-    } catch (submitError) {
-      setError(submitError.message || 'Admin login failed');
+    } catch (submitError: unknown) {
+      setError(submitError instanceof Error ? submitError.message : 'Admin login failed');
     } finally {
       setBusy(false);
     }
@@ -127,4 +127,5 @@ export default function LoginPage() {
     </section>
   );
 }
+
 

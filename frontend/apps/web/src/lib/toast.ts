@@ -1,6 +1,11 @@
 export const APP_TOAST_EVENT = 'app:toast';
 
-export function notify(message, options = {}) {
+type ToastOptions = {
+  type?: string;
+  duration?: number;
+};
+
+export function notify(message, options: ToastOptions = {}) {
   const text = String(message || '').trim();
   if (!text) return;
 
@@ -16,6 +21,6 @@ export function notify(message, options = {}) {
   );
 }
 
-export function notifyError(message, options = {}) {
+export function notifyError(message, options: ToastOptions = {}) {
   notify(message, { ...options, type: 'error' });
 }

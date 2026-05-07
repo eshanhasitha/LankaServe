@@ -1,6 +1,11 @@
 ﻿import Avatar from './Avatar.tsx';
 
-function InfoBlock({ item }) {
+type Badge = {
+  label: string;
+  className?: string;
+};
+
+function InfoBlock({ item }: { item?: any }) {
   if (!item) return null;
 
   if (item.type === 'avatar') {
@@ -27,13 +32,21 @@ function InfoBlock({ item }) {
 }
 
 export default function JobListCard({
-  badges = [],
+  badges = [] as Badge[],
   title,
   infoBlocks = [],
   description = '',
   rightSummary,
   actions,
   className = '',
+}: {
+  badges?: Badge[];
+  title?: string;
+  infoBlocks?: any[];
+  description?: string;
+  rightSummary?: { label: string; value: string };
+  actions?: React.ReactNode;
+  className?: string;
 }) {
   return (
     <article className={`bg-white p-6 rounded-[16px] shadow-sm border border-slate-50 flex items-center justify-between ${className}`.trim()}>

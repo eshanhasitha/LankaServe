@@ -36,12 +36,12 @@ export default function AppToaster() {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed left-1/2 top-8 z-70 flex w-[min(92vw,24rem)] flex-col gap-2 -translate-x-1/2 items-center sm:top-10">
+    <div className="pointer-events-none fixed left-1/2 top-4 z-70 flex w-[min(92vw,24rem)] -translate-x-1/2 flex-col items-center gap-2 sm:top-8">
       {toasts.map((toast) => (
         <article
           key={toast.id}
           role="alert"
-          className={`pointer-events-auto rounded-2xl border px-4 py-3 shadow-lg transition-all ${
+          className={`pointer-events-auto w-full rounded-2xl border px-4 py-3 shadow-lg transition-all ${
             toast.type === 'error'
               ? 'border-slate-200 bg-slate-100 text-slate-700'
               : 'border-slate-200 bg-white text-slate-800'
@@ -57,7 +57,7 @@ export default function AppToaster() {
                 <span className="material-symbols-outlined text-base leading-none">info</span>
               </span>
             )}
-            <p className="text-base font-medium leading-5">{toast.message}</p>
+            <p className="text-sm font-medium leading-5 sm:text-base">{toast.message}</p>
           </div>
         </article>
       ))}
