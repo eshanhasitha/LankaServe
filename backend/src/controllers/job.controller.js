@@ -52,7 +52,15 @@ export const getById = async (req, res, next) => {
         const filter = { _id: req.params.id, isDeleted: false };
         if (req.user.role === 'customer') filter.customerId = req.user._id;
         if (req.user.role === 'provider') {
-            filter.$or = [{ providerId: req.user._id }, { preferredProviderId: req.user._id }];
+            filter.$or = [
+                { providerId: req.user._id },
+                { preferredProviderId: req.user._id },
+                {
+                    status: 'pending',
+                    providerId: null,
+                    preferredProviderId: null,
+                },
+            ];
         }
 
         const job = await Job.findOne(filter)
