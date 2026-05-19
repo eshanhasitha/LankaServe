@@ -11,6 +11,7 @@ import messageRoutes from './message.routes.js';
 import adminRoutes from './admin.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import uploadRoutes from './upload.routes.js';
+import supportRequestRoutes from './support-request.routes.js';
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/admin-auth', adminAuthRoutes);
 router.use('/admin', adminRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/support-requests', supportRequestRoutes);
 
 export default router;
