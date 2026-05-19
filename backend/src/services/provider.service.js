@@ -105,13 +105,17 @@ export const listProviderJobs = async (userId, query) => {
 
 export const browseOpenJobs = async (userId, query) => {
     const { page, limit, skip } = getPagination(query);
-    const provider = await ServiceProvider.findOne({ userId, isDeleted: false });
 
-    const filter = { status: 'pending', isDeleted: false, preferredProviderId: null };
+    const filter = {
+        status: 'pending',
+        isDeleted: false,
+        $or: [
+            { preferredProviderId: null },
+            { preferredProviderId: userId },
+        ],
+    };
     if (query.category) {
         filter.category = query.category;
-    } else if (provider?.categories?.length) {
-        filter.category = { $in: provider.categories };
     }
 
     if (query.minPrice || query.maxPrice) {
@@ -252,24 +256,38 @@ export const providerEarnings = async (userId, query) => {
 
 export const listSuggestedJobs = async (userId, limit = 20) => {
     const provider = await ServiceProvider.findOne({ userId, isDeleted: false }).select('categories district city location');
-    if (!provider) return [];
+    const providerCategories = Array.isArray(provider?.categories) ? provider.categories.filter(Boolean) : [];
+    const providerProvince = getSriLankaProvince(provider?.district);
 
-    const filter = { status: 'pending', isDeleted: false };
-    if (provider.categories?.length) {
-        filter.category = { $in: provider.categories };
-    }
-
-    const providerProvince = getSriLankaProvince(provider.district);
-    const items = await Job.find(filter)
+    const items = await Job.find({
+        status: 'pending',
+        isDeleted: false,
+        $or: [
+            { preferredProviderId: null },
+            { preferredProviderId: userId },
+        ],
+    })
         .sort({ createdAt: -1 })
         .limit(100)
         .populate('customerId', 'name district city location');
 
-    const filtered = providerProvince
-        ? items.filter((job) => getSriLankaProvince(job.customerId?.district) === providerProvince)
-        : items;
+    const categorySet = new Set(providerCategories.map((category) => String(category).toLowerCase()));
+    const scored = items
+        .map((job) => {
+            const categoryMatch = categorySet.size > 0 && categorySet.has(String(job.category || '').toLowerCase());
+            const provinceMatch = providerProvince && getSriLankaProvince(job.customerId?.district) === providerProvince;
+            const directRequest = String(job.preferredProviderId || '') === String(userId);
+            return {
+                job,
+                score: (directRequest ? 100 : 0) + (categoryMatch ? 20 : 0) + (provinceMatch ? 10 : 0),
+            };
+        })
+        .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return new Date(b.job.createdAt).getTime() - new Date(a.job.createdAt).getTime();
+        });
 
-    return filtered.slice(0, limit);
+    return scored.slice(0, limit).map((item) => item.job);
 };
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

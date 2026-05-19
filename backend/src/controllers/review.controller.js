@@ -50,13 +50,20 @@ export const getJobReview = async (req, res, next) => {
         const job = await Job.findOne({
             _id: req.params.jobId,
             isDeleted: false,
-        }).select('customerId providerId');
+        }).select('customerId providerId preferredProviderId status');
 
         if (!job) throw new Error('Job not found');
 
         const requesterId = String(req.user?._id || '');
         const isCustomer = String(job.customerId || '') === requesterId;
         const isProvider = String(job.providerId || '') === requesterId;
+        const isOpenProviderCandidate = req.user?.role === 'provider'
+            && job.status === 'pending'
+            && (!job.preferredProviderId || String(job.preferredProviderId) === requesterId);
+
+        if (isOpenProviderCandidate) {
+            return sendResponse(res, { message: 'Job review', data: null });
+        }
 
         if (!isCustomer && !isProvider && req.user?.role !== 'admin') {
             throw new Error('You are not allowed to view this review');
