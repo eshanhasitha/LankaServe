@@ -1,7 +1,7 @@
 import { cloudinary, isCloudinaryConfigured } from '../config/cloudinary.js';
 import { sendResponse } from '../utils/response.js';
 
-export const uploadProfileImage = async (req, res, next) => {
+async function uploadImage(req, res, next, { folder, label }) {
     try {
         if (!isCloudinaryConfigured) {
             const error = new Error('Cloudinary is not configured');
@@ -24,7 +24,7 @@ export const uploadProfileImage = async (req, res, next) => {
 
         const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const upload = await cloudinary.uploader.upload(dataUri, {
-            folder: 'lankaserve/profile-images',
+            folder,
             public_id: `${req.user._id}-${Date.now()}`,
             resource_type: 'image',
             overwrite: false,
@@ -32,7 +32,7 @@ export const uploadProfileImage = async (req, res, next) => {
 
         return sendResponse(res, {
             statusCode: 201,
-            message: 'Profile image uploaded',
+            message: `${label} uploaded`,
             data: {
                 url: upload.secure_url,
                 publicId: upload.public_id,
@@ -41,4 +41,18 @@ export const uploadProfileImage = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+}
+
+export const uploadProfileImage = async (req, res, next) => {
+    return uploadImage(req, res, next, {
+        folder: 'lankaserve/profile-images',
+        label: 'Profile image',
+    });
+};
+
+export const uploadSupportAttachment = async (req, res, next) => {
+    return uploadImage(req, res, next, {
+        folder: 'lankaserve/support-attachments',
+        label: 'Support attachment',
+    });
 };
