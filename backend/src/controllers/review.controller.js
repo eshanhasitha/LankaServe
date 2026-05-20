@@ -6,6 +6,7 @@ import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { recalculateProviderRanking } from '../services/ranking.service.js';
 import { recomputeProviderStatsByUserId } from '../services/provider.service.js';
 import { recalculateProviderBadges } from '../services/badge.service.js';
+import { pushNotification } from '../services/notification.service.js';
 
 export const createReview = async (req, res, next) => {
     try {
@@ -28,6 +29,24 @@ export const createReview = async (req, res, next) => {
         if (provider) {
             await recalculateProviderBadges(provider._id);
             await recalculateProviderRanking(provider._id);
+        }
+
+        if (job.providerId) {
+            const customerName = req.user?.name || 'A customer';
+            await pushNotification({
+                userId: job.providerId,
+                title: 'New Review Received',
+                body: `${customerName} rated "${job.title}" ${review.rating} stars.`,
+                type: 'job',
+                data: {
+                    jobId: String(job._id),
+                    reviewId: String(review._id),
+                    customerId: String(req.user._id),
+                    providerId: String(job.providerId),
+                    rating: String(review.rating),
+                    status: job.status,
+                },
+            });
         }
 
         return sendResponse(res, { statusCode: 201, message: 'Review created', data: review });
