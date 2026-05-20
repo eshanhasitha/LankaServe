@@ -1,5 +1,24 @@
 import mongoose from 'mongoose';
 
+const providerVerificationSchema = new mongoose.Schema({
+    legalName: { type: String, default: '', trim: true },
+    nicNumber: { type: String, default: '', trim: true },
+    phone: { type: String, default: '', trim: true },
+    address: { type: String, default: '', trim: true },
+    serviceArea: { type: String, default: '', trim: true },
+    businessRegistrationNumber: { type: String, default: '', trim: true },
+    notes: { type: String, default: '', trim: true },
+    status: {
+        type: String,
+        enum: ['not_submitted', 'pending', 'verified', 'rejected'],
+        default: 'not_submitted',
+        index: true,
+    },
+    submittedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    rejectionReason: { type: String, default: '', trim: true },
+}, { _id: false });
+
 const serviceProviderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
     categories: [{ type: String, required: true, index: true }],
@@ -8,6 +27,7 @@ const serviceProviderSchema = new mongoose.Schema({
     city: { type: String, default: '' },
     yearsExperience: { type: Number, default: 0 },
     verificationDocs: [{ type: String }],
+    verification: { type: providerVerificationSchema, default: () => ({}) },
     verified: { type: Boolean, default: false, index: true },
     availability: { type: String, enum: ['online', 'offline'], default: 'offline', index: true },
     location: {

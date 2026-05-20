@@ -44,7 +44,16 @@ export const deactivateUser = async (req, res, next) => {
 
 export const verifyProvider = async (req, res, next) => {
     try {
-        const provider = await ServiceProvider.findByIdAndUpdate(req.params.id, { verified: true }, { returnDocument: 'after' });
+        const provider = await ServiceProvider.findByIdAndUpdate(
+            req.params.id,
+            {
+                verified: true,
+                'verification.status': 'verified',
+                'verification.reviewedAt': new Date(),
+                'verification.rejectionReason': '',
+            },
+            { returnDocument: 'after' },
+        );
         await writeAuditLog({
             actorId: req.admin._id,
             action: 'provider_verify',

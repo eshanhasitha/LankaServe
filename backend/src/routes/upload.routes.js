@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { uploadProfileImage, uploadSupportAttachment } from '../controllers/upload.controller.js';
+import { uploadProfileImage, uploadProviderVerificationDocument, uploadSupportAttachment } from '../controllers/upload.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -13,5 +13,6 @@ const upload = multer({
 router.use(requireAuth);
 router.post('/profile-image', upload.single('image'), uploadProfileImage);
 router.post('/support-attachment', upload.single('image'), uploadSupportAttachment);
+router.post('/provider-verification', upload.single('image'), uploadProviderVerificationDocument);
 
 export default router;
