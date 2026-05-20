@@ -34,6 +34,49 @@ export const updateMeProvider = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+export const updateVerification = async (req, res, next) => {
+    try {
+        const verification = {
+            legalName: req.body.legalName,
+            nicNumber: req.body.nicNumber,
+            phone: req.body.phone,
+            address: req.body.address,
+            serviceArea: req.body.serviceArea,
+            businessRegistrationNumber: req.body.businessRegistrationNumber || '',
+            notes: req.body.notes || '',
+            status: 'pending',
+            submittedAt: new Date(),
+            reviewedAt: null,
+            rejectionReason: '',
+        };
+
+        const profile = await ServiceProvider.findOneAndUpdate(
+            { userId: req.user._id, isDeleted: false },
+            {
+                $set: {
+                    verification,
+                    verificationDocs: req.body.verificationDocs || [],
+                    verified: false,
+                },
+            },
+            { returnDocument: 'after', runValidators: true },
+        );
+
+        if (!profile) throw new Error('Provider profile not found');
+
+        await writeAuditLog({
+            actorId: req.user._id,
+            action: 'provider_verification_submit',
+            entity: 'ServiceProvider',
+            entityId: String(profile._id),
+            ip: req.ip,
+            userAgent: req.headers['user-agent'] || '',
+        });
+
+        return sendResponse(res, { message: 'Verification submitted for review', data: profile });
+    } catch (error) { next(error); }
+};
+
 export const setAvailability = async (req, res, next) => {
     try {
         const profile = await ServiceProvider.findOneAndUpdate({ userId: req.user._id, isDeleted: false }, { availability: req.body.availability }, { returnDocument: 'after' });

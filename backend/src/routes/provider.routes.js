@@ -4,6 +4,7 @@ import {
     apply,
     getMeProvider,
     updateMeProvider,
+    updateVerification,
     setAvailability,
     dashboard,
     analytics,
@@ -29,6 +30,16 @@ router.post('/apply', requireAuth, validate(Joi.object({ categories: Joi.array()
 
 router.get('/me', requireAuth, onlyProvider, getMeProvider);
 router.put('/me', requireAuth, onlyProvider, validate(Joi.object({ categories: Joi.array().items(Joi.string()), bio: Joi.string().allow(''), district: Joi.string().allow(''), city: Joi.string().allow(''), yearsExperience: Joi.number().min(0), location: Joi.object({ type: Joi.string().valid('Point').default('Point'), coordinates: Joi.array().items(Joi.number()).length(2) }) })), updateMeProvider);
+router.put('/verification', requireAuth, onlyProvider, validate(Joi.object({
+    legalName: Joi.string().trim().min(2).max(120).required(),
+    nicNumber: Joi.string().trim().min(5).max(40).required(),
+    phone: Joi.string().trim().min(7).max(30).required(),
+    address: Joi.string().trim().min(5).max(300).required(),
+    serviceArea: Joi.string().trim().min(2).max(120).required(),
+    businessRegistrationNumber: Joi.string().trim().allow('').max(80),
+    notes: Joi.string().trim().allow('').max(500),
+    verificationDocs: Joi.array().items(Joi.string().uri()).max(5).default([]),
+})), updateVerification);
 router.put('/availability', requireAuth, onlyProvider, validate(Joi.object({ availability: Joi.string().valid('online', 'offline').required() })), setAvailability);
 router.get('/dashboard', requireAuth, onlyProvider, dashboard);
 router.get('/analytics', requireAuth, onlyProvider, analytics);

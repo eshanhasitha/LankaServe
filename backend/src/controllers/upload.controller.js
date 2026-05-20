@@ -56,3 +56,10 @@ export const uploadSupportAttachment = async (req, res, next) => {
         label: 'Support attachment',
     });
 };
+
+export const uploadProviderVerificationDocument = async (req, res, next) => {
+    return uploadImage(req, res, next, {
+        folder: 'lankaserve/provider-verification',
+        label: 'Verification document',
+    });
+};
