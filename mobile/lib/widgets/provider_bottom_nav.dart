@@ -1,12 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../config/routes.dart';
+import '../services/message_badge_service.dart';
 import 'ui_scale.dart';
 
-class ProviderBottomNav extends StatelessWidget {
+class ProviderBottomNav extends StatefulWidget {
   const ProviderBottomNav({super.key, required this.activeIndex});
 
   final int activeIndex;
+
+  @override
+  State<ProviderBottomNav> createState() => _ProviderBottomNavState();
+}
+
+class _ProviderBottomNavState extends State<ProviderBottomNav> {
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    MessageBadgeService.instance.refreshUnread();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 12),
+      (_) => MessageBadgeService.instance.refreshUnread(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,14 +91,19 @@ class ProviderBottomNav extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: _navItem(
-              context,
-              4,
-              Icons.chat_bubble_outline_rounded,
-              'Messages',
-              AppRoutes.chat,
-              dot: true,
-              routeArgs: const {'fromProvider': true},
+            child: ValueListenableBuilder<bool>(
+              valueListenable: MessageBadgeService.instance.hasUnread,
+              builder: (context, hasUnread, _) {
+                return _navItem(
+                  context,
+                  4,
+                  Icons.chat_bubble_outline_rounded,
+                  'Messages',
+                  AppRoutes.chat,
+                  dot: hasUnread && widget.activeIndex != 4,
+                  routeArgs: const {'fromProvider': true},
+                );
+              },
             ),
           ),
         ],
@@ -89,7 +120,7 @@ class ProviderBottomNav extends StatelessWidget {
     bool dot = false,
     Object? routeArgs,
   }) {
-    final active = index == activeIndex;
+    final active = index == widget.activeIndex;
     final scale = UiScale.factor(context, min: 0.82, max: 1.0);
 
     return InkWell(
