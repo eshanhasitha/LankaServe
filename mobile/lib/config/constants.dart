@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'LankaServe';
-  static const Duration splashDuration = Duration(seconds: 2);
+  static const Duration splashDuration = Duration(milliseconds: 300);
 
   // Override one URL:
   // flutter run --dart-define=API_BASE_URL=http://<host>:5000
@@ -57,6 +57,10 @@ class AppConstants {
       addCandidate(raw);
     }
 
+    // Production default for mobile builds when no --dart-define is provided.
+    addCandidate('https://lanka-serve.vercel.app');
+
+    // Local development fallbacks.
     addCandidate('http://127.0.0.1:5000');
     addCandidate('http://10.0.2.2:5000');
     addCandidate('http://localhost:5000');

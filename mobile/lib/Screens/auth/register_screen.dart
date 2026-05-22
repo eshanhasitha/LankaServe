@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../config/firebase_bootstrap.dart';
 import '../../config/routes.dart';
+import '../../config/ui_styles.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/google_logo.dart';
 import '../../widgets/ui_scale.dart';
@@ -276,15 +277,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   height: UiScale.size(context, 64, min: 56, max: 66),
                   child: ElevatedButton(
                     onPressed: _loading ? null : _handleRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: brand,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: brand.withValues(alpha: 0.55),
-                      elevation: 2,
-                      shadowColor: const Color(0x41243F97),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                    style: AppUiStyles.primaryButton(
+                      height: UiScale.size(context, 64, min: 56, max: 66),
+                      radius: BorderRadius.circular(20),
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -338,13 +333,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   height: UiScale.size(context, 58, min: 52, max: 60),
                   child: OutlinedButton(
                     onPressed: _onGoogleRegister,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFD0D7E2)),
-                      backgroundColor: const Color(0xFFF8F9FB),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                    style:
+                        AppUiStyles.neutralOutlineButton(
+                          height: UiScale.size(context, 58, min: 52, max: 60),
+                          radius: BorderRadius.circular(16),
+                        ).copyWith(
+                          backgroundColor: WidgetStateProperty.all(
+                            const Color(0xFFF8F9FB),
+                          ),
+                        ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'api_service.dart';
 
 class JobService {
@@ -36,10 +38,7 @@ class JobService {
       'category': category,
       'price': price,
       'images': images,
-      'location': {
-        'type': 'Point',
-        'coordinates': coordinates,
-      },
+      'location': {'type': 'Point', 'coordinates': coordinates},
     };
     if (preferredProviderId != null && preferredProviderId.isNotEmpty) {
       body['preferredProviderId'] = preferredProviderId;
@@ -72,6 +71,11 @@ class JobService {
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> cancelJob(String jobId) async {
+    final res = await _api.put('/jobs/$jobId/cancel');
+    return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> startJob(String jobId) async {
     final res = await _api.put('/jobs/$jobId/start');
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
@@ -96,8 +100,21 @@ class JobService {
     required String jobId,
     required String token,
   }) async {
-    final res = await _api.put('/jobs/$jobId/arrival/scan', body: {'token': token});
+    final res = await _api.put(
+      '/jobs/$jobId/arrival/scan',
+      body: {'token': token},
+    );
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
+  Future<String> uploadServiceImage(File file) async {
+    final res = await _api.postMultipart('/uploads/profile-image', file: file);
+    final data = (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final url = data['url']?.toString().trim() ?? '';
+    if (url.isEmpty) {
+      throw ApiException('Upload failed: missing image URL');
+    }
+    return url;
   }
 
   List<Map<String, dynamic>> _asList(dynamic value) {
@@ -105,7 +122,9 @@ class JobService {
       return value.whereType<Map<String, dynamic>>().toList();
     }
     if (value is Map<String, dynamic> && value['items'] is List) {
-      return (value['items'] as List).whereType<Map<String, dynamic>>().toList();
+      return (value['items'] as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
     }
     return <Map<String, dynamic>>[];
   }
