@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context.tsx';
 import Avatar from '../components/Avatar.tsx';
 import { apiRequest } from '../lib/api.ts';
+import { CustomerLanguageProvider, CustomerLanguageToggle } from '../lib/customer-i18n.tsx';
 
 function asId(value) {
   if (!value) return '';
@@ -12,6 +13,14 @@ function asId(value) {
 }
 
 export default function CustomerLayout() {
+  return (
+    <CustomerLanguageProvider>
+      <CustomerLayoutInner />
+    </CustomerLanguageProvider>
+  );
+}
+
+function CustomerLayoutInner() {
   const { user, accessToken, logoutCurrentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -152,7 +161,7 @@ export default function CustomerLayout() {
                     : headerTitle || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 lg:overflow-x-hidden">
+    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 lg:overflow-x-hidden" data-customer-i18n-root>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex h-[70px] items-center border-b border-slate-100 px-6">
           <div className="flex items-center gap-2">
@@ -168,7 +177,6 @@ export default function CustomerLayout() {
             <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-9 w-9" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{user?.name}</p>
-              <p className="truncate text-xs text-slate-500">{user?.email}</p>
             </div>
           </div>
         </div>
@@ -252,7 +260,6 @@ export default function CustomerLayout() {
             <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-9 w-9" />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{user?.name}</p>
-              <p className="truncate text-xs text-slate-500">{user?.email}</p>
             </div>
           </div>
         </div>
@@ -351,13 +358,7 @@ export default function CustomerLayout() {
               )}
             </div>
             <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
-              <div className="hidden items-center gap-1 text-sm font-semibold text-slate-600 md:flex">
-                <span className="cursor-pointer hover:text-[#2F4DA0]">EN</span>
-                <span className="text-slate-300">|</span>
-                <span className="cursor-pointer text-slate-400 hover:text-[#2F4DA0]">SI</span>
-                <span className="text-slate-300">|</span>
-                <span className="cursor-pointer text-slate-400 hover:text-[#2F4DA0]">TA</span>
-              </div>
+              <CustomerLanguageToggle className="hidden md:flex" />
               <NavLink className="relative text-slate-500" to="/customer/notifications">
                 <span className="material-symbols-outlined text-2xl">notifications</span>
                 {notificationUnread > 0 ? <span className="absolute right-0 top-0 h-2 w-2 rounded-full border-2 border-white bg-red-500" /> : null}
@@ -396,4 +397,5 @@ export default function CustomerLayout() {
     </div>
   );
 }
+
 
