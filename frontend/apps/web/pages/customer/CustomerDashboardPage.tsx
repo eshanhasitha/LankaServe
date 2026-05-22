@@ -137,38 +137,38 @@ export default function CustomerDashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
-        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
+      <section className="grid grid-cols-1 items-stretch gap-4 sm:gap-6 md:grid-cols-3">
+        <div className="group flex h-full min-h-[190px] flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-blue-50 text-[#2F4DA0] rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">history</span>
             </div>
             <h3 className="font-bold text-lg mb-1">My Jobs</h3>
-            <p className="text-slate-500 text-sm">Track your ongoing and past service requests.</p>
+            <p className="min-h-[40px] text-sm leading-5 text-slate-500">Track your ongoing and past service requests.</p>
           </div>
           <Link to="/customer/my-jobs" className="mt-4 flex items-center justify-center w-8 h-8 bg-slate-50 rounded-full group-hover:bg-[#2F4DA0] group-hover:text-white transition-all">
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
         </div>
-        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
+        <div className="group flex h-full min-h-[190px] flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">add_task</span>
             </div>
             <h3 className="font-bold text-lg mb-1">Post a Service</h3>
-            <p className="text-slate-500 text-sm">Create a new request for any help you need.</p>
+            <p className="min-h-[40px] text-sm leading-5 text-slate-500">Create a new request for any help you need.</p>
           </div>
           <Link to="/customer/post-service" className="mt-4 flex items-center justify-center w-8 h-8 bg-slate-50 rounded-full group-hover:bg-[#2F4DA0] group-hover:text-white transition-all">
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
         </div>
-        <div className="group flex flex-col justify-between rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
+        <div className="group flex h-full min-h-[190px] flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 shadow-sm transition-all hover:shadow-md sm:p-6">
           <div>
             <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-4">
               <span className="material-symbols-outlined">manage_search</span>
             </div>
             <h3 className="font-bold text-lg mb-1">Find Providers</h3>
-            <p className="text-slate-500 text-sm">Browse our directory of verified professionals.</p>
+            <p className="min-h-[40px] text-sm leading-5 text-slate-500">Browse our directory of verified professionals.</p>
           </div>
           <Link to="/customer/find-providers" className="mt-4 flex items-center justify-center w-8 h-8 bg-slate-50 rounded-full group-hover:bg-[#2F4DA0] group-hover:text-white transition-all">
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -198,17 +198,17 @@ export default function CustomerDashboardPage() {
               </div>
             ))
           ) : activeJobs.map((job) => (
-            <div key={job._id} className="min-w-[260px] rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:min-w-[320px] sm:p-5">
-              <div className="flex justify-between items-start mb-4">
+            <div key={job._id} className="flex min-h-[240px] min-w-[260px] flex-col rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:min-w-[320px] sm:p-5">
+              <div className="mb-4 flex items-start justify-between gap-3">
                 <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded">{job.category}</span>
-                <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${jobStatusClass(job.status)}`}>{jobStatusLabel(job.status)}</span>
+                <span className={`shrink-0 px-2.5 py-1 text-[10px] font-bold rounded-full ${jobStatusClass(job.status)}`}>{jobStatusLabel(job.status)}</span>
               </div>
-              <h4 className="font-bold mb-2">{job.title}</h4>
+              <h4 className="mb-2 min-h-[48px] text-base font-bold leading-6">{job.title}</h4>
               <div className="flex items-center gap-2 text-slate-500 text-xs mb-4">
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 <span>{job.dateText}</span>
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-50 pt-4">
                 <div className="flex items-center gap-2">
                   {job.hasProvider ? (
                     <>
@@ -225,7 +225,7 @@ export default function CustomerDashboardPage() {
                   )}
                 </div>
                 <Link
-                  className="text-xs font-bold text-[#2F4DA0] flex items-center gap-1"
+                  className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#2F4DA0]"
                   to={`/customer/my-jobs/${job._id}`}
                   state={{ jobTitle: job.title }}
                 >
@@ -270,7 +270,7 @@ export default function CustomerDashboardPage() {
             ))
           ) : hasSuggestions ? (
             suggestedProviders.map((provider) => (
-              <div key={provider.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+              <div key={provider.id} className="flex h-full min-h-[250px] flex-col rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-start gap-3 mb-4">
                   <Avatar src={provider.profileImage} name={provider.name} className="w-14 h-14 rounded-full" />
                   <div className="min-w-0">
@@ -283,7 +283,7 @@ export default function CustomerDashboardPage() {
                     <p className="text-sm text-slate-500">{provider.categoryLabel}</p>
                   </div>
                 </div>
-                <div className="space-y-2 text-sm text-slate-500 mb-5">
+                <div className="mb-5 min-h-[56px] space-y-2 text-sm text-slate-500">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-base text-amber-400">star</span>
                     <span>{provider.rating.toFixed(1)} rating</span>
@@ -297,7 +297,7 @@ export default function CustomerDashboardPage() {
                 </div>
                 <Link
                   to={`/customer/providers/${provider.id}`}
-                  className="w-full inline-flex items-center justify-center rounded-xl bg-[#2F4DA0] text-white text-sm font-bold py-2.5 hover:opacity-90 transition-all"
+                  className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-[#2F4DA0] py-2.5 text-sm font-bold text-white transition-all hover:opacity-90"
                 >
                   View Profile
                 </Link>

@@ -275,6 +275,7 @@ export default function ProviderDashboardPage() {
                 {suggestions.map((job) => (
                 <SuggestedJob
                   key={job._id}
+                  jobId={job._id}
                   icon={String(job.category || '').toLowerCase().includes('ac') ? 'error' : 'bolt'}
                   iconClass={String(job.category || '').toLowerCase().includes('ac') ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-[#2F4DA0]'}
                   title={job.title || 'Untitled Job'}
@@ -337,9 +338,9 @@ export default function ProviderDashboardPage() {
                 <p className="text-[10px] text-slate-400">Our support team is online</p>
               </div>
             </div>
-            <button className="w-full border border-slate-200 py-2 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors" type="button">
+            <Link className="block w-full border border-slate-200 py-2 rounded-lg text-center text-xs font-semibold hover:bg-slate-50 transition-colors" to="/provider/help-center">
               Open Support Chat
-            </button>
+            </Link>
           </section>
         </div>
       </div>
@@ -368,8 +369,8 @@ function StatusCard({ label, value, color, icon }) {
   );
 }
 
-function SuggestedJob({ icon, iconClass, title, tag, tagClass, location, time, budget }) {
-  return (
+function SuggestedJob({ jobId, icon, iconClass, title, tag, tagClass, location, time, budget }) {
+  const content = (
     <article className="bg-white p-5 rounded-[16px] shadow-sm border border-slate-50 flex items-center justify-between group cursor-pointer hover:border-[#2F4DA0] transition-colors">
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconClass}`}>
@@ -391,6 +392,18 @@ function SuggestedJob({ icon, iconClass, title, tag, tagClass, location, time, b
         <p className="text-[10px] font-bold text-slate-400 uppercase">Budget</p>
       </div>
     </article>
+  );
+
+  if (jobId) {
+    return (
+      <Link className="block" to={`/provider/jobs/${jobId}`}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    content
   );
 }
 

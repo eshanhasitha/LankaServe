@@ -2,6 +2,7 @@
 import LandingPage from './pages/public/LandingPage.tsx';
 import LoginPage from './pages/public/LoginPage.tsx';
 import RegisterPage from './pages/public/RegisterPage.tsx';
+import PublicInfoPage from './pages/public/PublicInfoPage.tsx';
 import CustomerLayout from './layouts/CustomerLayout.tsx';
 import ProviderLayout from './layouts/ProviderLayout.tsx';
 import CustomerDashboardPage from './pages/customer/CustomerDashboardPage.tsx';
@@ -36,6 +37,16 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/find-a-pro" element={<PublicInfoPage pageKey="findPro" />} />
+      <Route path="/become-a-pro" element={<PublicInfoPage pageKey="becomePro" />} />
+      <Route path="/how-it-works" element={<PublicInfoPage pageKey="howItWorks" />} />
+      <Route path="/service-areas" element={<PublicInfoPage pageKey="serviceAreas" />} />
+      <Route path="/help-center" element={<PublicInfoPage pageKey="helpCenter" />} />
+      <Route path="/safety-guide" element={<PublicInfoPage pageKey="safetyGuide" />} />
+      <Route path="/contact" element={<PublicInfoPage pageKey="contact" />} />
+      <Route path="/terms" element={<PublicInfoPage pageKey="terms" />} />
+      <Route path="/privacy" element={<PublicInfoPage pageKey="privacy" />} />
+      <Route path="/cookies" element={<PublicInfoPage pageKey="cookies" />} />
 
       <Route path="/home" element={<ProtectedRoute allowedRoles={["customer", "provider", "admin"]}><RoleHomeRedirect /></ProtectedRoute>} />
 

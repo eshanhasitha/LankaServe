@@ -65,8 +65,9 @@ export default function CustomerProviderProfilePage() {
         const items = Array.isArray(providersResponse?.data) ? providersResponse.data : [];
         const match = items.find((item) => {
           const userId = String(item?.userId?._id || item?.userId || '');
+          const profileId = String(item?._id || '');
           const slug = slugify(item?.userId?.name);
-          return userId === providerId || slug === providerId;
+          return userId === providerId || profileId === providerId || slug === providerId;
         });
 
         if (!match) {

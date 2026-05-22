@@ -100,7 +100,7 @@ export default function ProviderBadgesPage() {
   const activeBadges = Array.isArray(data.active) ? data.active : [];
   const lockedBadges = Array.isArray(data.locked) ? data.locked : [];
   const benefits = Array.isArray(data.benefits) ? data.benefits : [];
-  const rankLine = `${data.summary.currentLevel || 'Provider'}${data.summary.rankLabel ? ` Â· ${data.summary.rankLabel}` : ''}`;
+  const rankLine = `${data.summary.currentLevel || 'Provider'}${data.summary.rankLabel ? ` \u00B7 ${data.summary.rankLabel}` : ''}`;
   const rankPositionLine = data.summary.totalProviders
     ? `#${data.summary.rankPosition}/${data.summary.totalProviders}`
     : '';
