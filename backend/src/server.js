@@ -1,18 +1,26 @@
-import "dotenv/config";
-import app from "./app.js";
-import { connectDB } from "./config/db.js";
-import { initFirebase } from "./config/firebase.js";
+import app from './app.js';
+import { env } from './config/env.js';
+import { connectDB } from './config/db.js';
+import { logger } from './config/logger.js';
+import { rankingCron } from './cron/ranking.cron.js';
+import { badgeCron } from './cron/badge.cron.js';
+import { cleanupCron } from './cron/cleanup.cron.js';
+import { backupCron } from './cron/backup.cron.js';
 
 const start = async () => {
-  await connectDB(process.env.MONGO_URI);
-  initFirebase();
+    await connectDB();
 
-  app.listen(process.env.PORT, () => {
-    console.log(`Server running on ${process.env.PORT}`);
-  });
+    app.listen(env.PORT, () => {
+        logger.info(`Server running on port ${env.PORT}`);
+    });
+
+    rankingCron();
+    badgeCron();
+    cleanupCron();
+    backupCron();
 };
 
-start().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
+start().catch((error) => {
+    logger.error(`Server bootstrap failed: ${error.message}`);
+    process.exit(1);
 });
