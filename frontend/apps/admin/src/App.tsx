@@ -1,54 +1,47 @@
-import { useState } from "react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "./firebase";
-import api from "./api";
+﻿import { Navigate, Route, Routes } from 'react-router-dom';
+import LoginPage from './pages/LoginPage.tsx';
+import AdminLayout from './layouts/AdminLayout.tsx';
+import AdminDashboardPage from './pages/AdminDashboardPage.tsx';
+import AdminUsersPage from './pages/AdminUsersPage.tsx';
+import AdminProvidersPage from './pages/AdminProvidersPage.tsx';
+import AdminJobsPage from './pages/AdminJobsPage.tsx';
+import AdminQrLogsPage from './pages/AdminQrLogsPage.tsx';
+import AdminReviewsPage from './pages/AdminReviewsPage.tsx';
+import AdminAddsPage from './pages/AdminAddsPage.tsx';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage.tsx';
+import AdminBadgeRulesPage from './pages/AdminBadgeRulesPage.tsx';
+import AdminBroadcastPage from './pages/AdminBroadcastPage.tsx';
+import AdminReportsPage from './pages/AdminReportsPage.tsx';
+import AdminBackupPage from './pages/AdminBackupPage.tsx';
+import AdminSettingsPage from './pages/AdminSettingsPage.tsx';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute.tsx';
 
 export default function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [result, setResult] = useState("");
-
-  const login = async () => {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      await cred.user.getIdToken(true);
-      setResult("Admin login success (Firebase token ready)");
-    } catch (e) {
-      const error = e as any;
-      setResult(`code: ${error.code}\nmessage: ${error.message}`);
-    }
-  };
-
-  const register = async () => {
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await cred.user.getIdToken(true);
-      setResult("Register success. Add admin custom claim for admin access.");
-    } catch (e) {
-      const error = e as any;
-      setResult(`code: ${error.code}\nmessage: ${error.message}`);
-    }
-  };
-
-  const dashboard = async () => {
-    try {
-      const res = await api.get("/admin/dashboard");
-      setResult(JSON.stringify(res.data, null, 2));
-    } catch (e) {
-      const error = e as any;
-      setResult(JSON.stringify(error.response?.data || error.message, null, 2));
-    }
-  };
-
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Admin App</h2>
-      <input placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button onClick={login}>Login</button>
-      <button onClick={register}>Register</button>
-      <button onClick={dashboard}>Admin Dashboard</button>
-      <pre>{result}</pre>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="providers" element={<AdminProvidersPage />} />
+        <Route path="jobs" element={<AdminJobsPage />} />
+        <Route path="qr-logs" element={<AdminQrLogsPage />} />
+        <Route path="reviews" element={<AdminReviewsPage />} />
+        <Route path="adds" element={<AdminAddsPage />} />
+
+        <Route path="insights/analytics" element={<AdminAnalyticsPage />} />
+        <Route path="insights/badge-rules" element={<AdminBadgeRulesPage />} />
+        <Route path="insights/broadcast" element={<AdminBroadcastPage />} />
+
+        <Route path="system/reports" element={<AdminReportsPage />} />
+        <Route path="system/backup" element={<AdminBackupPage />} />
+        <Route path="system/settings" element={<AdminSettingsPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }
+
