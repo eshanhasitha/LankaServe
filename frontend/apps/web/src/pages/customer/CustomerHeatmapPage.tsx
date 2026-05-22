@@ -20,12 +20,25 @@ const SRI_LANKA_BOUNDS = {
   maxLat: 10.2,
 };
 
-const defaultFilters = {
+const defaultFilters: {
+  category: string;
+  distance: number | null;
+  minRating: number;
+  availableNow: boolean;
+} = {
   category: 'ALL',
-  distance: 15,
-  minRating: 4,
+  distance: null,
+  minRating: 0,
   availableNow: false,
 };
+
+const distanceOptions = [5, 10, 25, 50];
+const ratingOptions = [
+  { label: 'Any', value: 0 },
+  { label: '4.0+', value: 4 },
+  { label: '4.5+', value: 4.5 },
+  { label: '5.0', value: 5 },
+];
 
 const providerPin = (online) =>
   L.divIcon({
@@ -222,15 +235,17 @@ export default function CustomerHeatmapPage() {
 
   const filteredProviders = useMemo(() => {
     return providers.filter((provider) => {
-      const categoryMatch = applied.category === 'ALL' || provider.category === applied.category;
-      const distanceMatch = provider.distanceKm !== null ? provider.distanceKm <= applied.distance : true;
+      const selectedCategory = normalizeServiceCategory(applied.category);
+      const categoryMatch = applied.category === 'ALL' || provider.category === selectedCategory;
+      const distanceMatch =
+        applied.distance && provider.distanceKm !== null ? provider.distanceKm <= applied.distance : true;
       const ratingMatch = provider.rating >= applied.minRating;
       const availableMatch = !applied.availableNow || provider.availableNow;
       return categoryMatch && distanceMatch && ratingMatch && availableMatch;
     });
   }, [applied, providers]);
 
-  const visibleProviders = filteredProviders.length ? filteredProviders : providers;
+  const visibleProviders = filteredProviders;
   const mapCenter = customerCoords || DEFAULT_CENTER;
   const mapPoints = useMemo(() => {
     const providerPoints = visibleProviders
@@ -291,69 +306,122 @@ export default function CustomerHeatmapPage() {
         <p className="text-sm text-slate-500">Explore nearby providers and service coverage in your area.</p>
       </header>
 
-      <section className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm sm:gap-6">
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
-          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Category</label>
-          <select
-            className="min-w-0 rounded-lg border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0] sm:min-w-[180px]"
-            value={draft.category}
-            onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
-          >
-            <option value="ALL">All Categories</option>
-            {SERVICE_CATEGORY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex w-full flex-col gap-1 sm:max-w-[240px] sm:flex-1">
-          <div className="flex justify-between">
-            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Distance</label>
-            <span className="text-[10px] font-bold text-[#2F4DA0]">{draft.distance}km</span>
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Filters</h2>
+            <p className="text-xs text-slate-400">Filter the providers shown on the heatmap.</p>
           </div>
-          <input
-            className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#2F4DA0]"
-            max="50"
-            min="1"
-            type="range"
-            value={draft.distance}
-            onChange={(event) => setDraft((prev) => ({ ...prev, distance: Number(event.target.value) }))}
-          />
-        </div>
-
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
-          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Min Rating</label>
-          <select
-            className="rounded-lg border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]"
-            value={draft.minRating}
-            onChange={(event) => setDraft((prev) => ({ ...prev, minRating: Number(event.target.value) }))}
-          >
-            <option value={4}>4+</option>
-            <option value={4.5}>4.5+</option>
-            <option value={3}>3+</option>
-          </select>
-        </div>
-
-        <div className="flex w-full items-center gap-3 pt-0 sm:w-auto sm:pt-4">
-          <span className="text-sm font-medium text-slate-600">Available Now</span>
           <button
-            className={`w-11 h-6 rounded-full relative transition-all ${draft.availableNow ? 'bg-[#2F4DA0]' : 'bg-slate-200'}`}
+            className="self-start rounded-full px-3 py-1.5 text-xs font-bold text-[#2F4DA0] transition-colors hover:bg-blue-50 sm:self-auto"
             type="button"
-            onClick={() => setDraft((prev) => ({ ...prev, availableNow: !prev.availableNow }))}
+            onClick={() => {
+              setDraft(defaultFilters);
+              setApplied(defaultFilters);
+            }}
           >
-            <span className={`absolute top-[2px] h-5 w-5 rounded-full bg-white transition-all ${draft.availableNow ? 'left-[22px]' : 'left-[2px]'}`} />
+            Clear All
           </button>
         </div>
 
-        <button
-          className="w-full rounded-lg bg-[#2F4DA0] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 sm:ml-auto sm:w-auto"
-          onClick={() => setApplied(draft)}
-          type="button"
-        >
-          Apply Filters
-        </button>
+        <div className="grid gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(240px,1.4fr)_minmax(220px,1fr)_auto_auto] lg:items-end">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Category</label>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-[#2F4DA0] focus:ring-2 focus:ring-[#2F4DA0]/20"
+                value={draft.category}
+                onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
+              >
+                <option value="ALL">All Categories</option>
+                {SERVICE_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-400">
+                expand_more
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Distance</label>
+              <span className="text-xs font-bold text-[#2F4DA0]">
+                {draft.distance ? `Within ${draft.distance} km` : 'All distances'}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {distanceOptions.map((value) => (
+                <button
+                  key={value}
+                  className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-all ${
+                    draft.distance === value
+                      ? 'border-[#2F4DA0] bg-[#2F4DA0] text-white shadow-sm'
+                      : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                  }`}
+                  type="button"
+                  onClick={() => setDraft((prev) => ({ ...prev, distance: prev.distance === value ? null : value }))}
+                >
+                  {value}km
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Min Rating</label>
+            <div className="grid grid-cols-4 gap-2">
+              {ratingOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-all ${
+                    draft.minRating === option.value
+                      ? 'border-yellow-200 bg-yellow-50 text-yellow-600'
+                      : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                  }`}
+                  type="button"
+                  onClick={() => setDraft((prev) => ({ ...prev, minRating: option.value }))}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            className={`flex h-[42px] items-center justify-between gap-3 rounded-xl border px-3 text-sm font-semibold transition-all ${
+              draft.availableNow
+                ? 'border-[#2F4DA0] bg-blue-50 text-[#2F4DA0]'
+                : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'
+            }`}
+            type="button"
+            onClick={() => setDraft((prev) => ({ ...prev, availableNow: !prev.availableNow }))}
+          >
+            <span>Available Now</span>
+            <span
+              className={`relative h-5 w-9 rounded-full transition-colors ${
+                draft.availableNow ? 'bg-[#2F4DA0]' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`absolute top-[2px] h-4 w-4 rounded-full bg-white transition-all ${
+                  draft.availableNow ? 'left-[18px]' : 'left-[2px]'
+                }`}
+              />
+            </span>
+          </button>
+
+          <button
+            className="h-[42px] rounded-xl bg-[#2F4DA0] px-6 text-sm font-bold text-white shadow-sm transition-all hover:shadow-lg active:scale-[0.98]"
+            onClick={() => setApplied(draft)}
+            type="button"
+          >
+            Apply Filters
+          </button>
+        </div>
       </section>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -379,127 +447,131 @@ export default function CustomerHeatmapPage() {
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-lg">
-        <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Real Map Preview</p>
-            <p className="text-xs text-slate-400">Provider locations are rendered from saved backend coordinates.</p>
-          </div>
-          <p className="text-xs text-slate-500">{visibleProviders.length} providers visible</p>
-        </div>
-        <div className="h-[360px] w-full sm:h-[460px] xl:h-[560px]">
-          <MapContainer
-            center={[mapCenter[1], mapCenter[0]]}
-            className="h-full w-full"
-            scrollWheelZoom
-            zoom={11}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <FitMapToPoints center={mapCenter} points={mapPoints} />
-            {heatZones.map((zone, index) => (
-              <Circle
-                key={`heat-zone-${index}`}
-                center={zone.center}
-                radius={zone.radius}
-                pathOptions={{
-                  color: '#ef4444',
-                  weight: 1,
-                  fillColor: '#ef4444',
-                  fillOpacity: 0.12 + zone.normalized * 0.28,
-                }}
-              />
-            ))}
-            {customerCoords ? (
-              <Marker icon={customerPin} position={[customerCoords[1], customerCoords[0]]}>
-                <Popup>{customerLocationLabel}</Popup>
-              </Marker>
-            ) : null}
-            {visibleProviders.map((provider) => (
-              <Marker
-                key={provider.id}
-                icon={providerPin(provider.availableNow)}
-                position={[provider.coordinates[1], provider.coordinates[0]]}
+      {!loading ? (
+        <>
+          <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-lg">
+            <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Real Map Preview</p>
+                <p className="text-xs text-slate-400">Provider locations are rendered from saved backend coordinates.</p>
+              </div>
+              <p className="text-xs text-slate-500">{visibleProviders.length} providers visible</p>
+            </div>
+            <div className="h-[360px] w-full sm:h-[460px] xl:h-[560px]">
+              <MapContainer
+                center={[mapCenter[1], mapCenter[0]]}
+                className="h-full w-full"
+                scrollWheelZoom
+                zoom={11}
               >
-                <Popup>
-                  <div className="min-w-[200px] space-y-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar src={provider.avatar} name={provider.name} className="w-10 h-10" />
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{provider.name}</p>
-                        <p className="text-xs text-slate-500">{provider.role}</p>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <FitMapToPoints center={mapCenter} points={mapPoints} />
+                {heatZones.map((zone, index) => (
+                  <Circle
+                    key={`heat-zone-${index}`}
+                    center={zone.center}
+                    radius={zone.radius}
+                    pathOptions={{
+                      color: '#ef4444',
+                      weight: 1,
+                      fillColor: '#ef4444',
+                      fillOpacity: 0.12 + zone.normalized * 0.28,
+                    }}
+                  />
+                ))}
+                {customerCoords ? (
+                  <Marker icon={customerPin} position={[customerCoords[1], customerCoords[0]]}>
+                    <Popup>{customerLocationLabel}</Popup>
+                  </Marker>
+                ) : null}
+                {visibleProviders.map((provider) => (
+                  <Marker
+                    key={provider.id}
+                    icon={providerPin(provider.availableNow)}
+                    position={[provider.coordinates[1], provider.coordinates[0]]}
+                  >
+                    <Popup>
+                      <div className="min-w-[200px] space-y-2">
+                        <div className="flex items-center gap-3">
+                          <Avatar src={provider.avatar} name={provider.name} className="w-10 h-10" />
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">{provider.name}</p>
+                            <p className="text-xs text-slate-500">{provider.role}</p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-600 space-y-1">
+                          <p>{provider.locationLabel}</p>
+                          <p>Rating: {provider.rating.toFixed(1)}</p>
+                          <p>{provider.completedJobs}+ jobs completed</p>
+                          {provider.distanceKm !== null ? <p>{provider.distanceKm.toFixed(1)} km away</p> : null}
+                        </div>
+                        <Link
+                          className="block w-full rounded-lg bg-[#2F4DA0] px-3 py-2 text-center text-xs font-bold text-white"
+                          to={`/customer/providers/${provider.userId || provider.id}`}
+                          state={{ providerName: provider.name }}
+                        >
+                          View Profile
+                        </Link>
                       </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xl font-bold">Recommended Nearby</h2>
+              <p className="text-sm text-slate-500">Sorted by the current API result and active filters.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {visibleProviders.map((provider) => (
+                <div key={`card-${provider.id}`} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Avatar src={provider.avatar} name={provider.name} className="w-12 h-12" />
+                    <div>
+                      <h4 className="font-bold text-sm">{provider.name}</h4>
+                      <p className="text-xs text-slate-500">{provider.role}</p>
                     </div>
-                    <div className="text-xs text-slate-600 space-y-1">
-                      <p>{provider.locationLabel}</p>
-                      <p>Rating: {provider.rating.toFixed(1)}</p>
-                      <p>{provider.completedJobs}+ jobs completed</p>
-                      {provider.distanceKm !== null ? <p>{provider.distanceKm.toFixed(1)} km away</p> : null}
-                    </div>
-                    <Link
-                      className="block w-full rounded-lg bg-[#2F4DA0] px-3 py-2 text-center text-xs font-bold text-white"
-                      to={`/customer/providers/${provider.userId || provider.id}`}
-                      state={{ providerName: provider.name }}
-                    >
-                      View Profile
-                    </Link>
                   </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
-      </section>
+                  <div className="mb-4 space-y-2 text-xs text-slate-600">
+                    <div className="flex items-center justify-between">
+                      <span>Rating</span>
+                      <span className="font-bold">{provider.rating.toFixed(1)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Location</span>
+                      <span className="max-w-[65%] truncate text-right font-medium">{provider.locationLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Distance</span>
+                      <span className="font-medium">{provider.distanceKm !== null ? `${provider.distanceKm.toFixed(1)} km` : 'Unknown'}</span>
+                    </div>
+                  </div>
+                  <Link
+                    className="block w-full bg-[#2F4DA0] text-white text-xs font-bold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-center"
+                    to={`/customer/providers/${provider.userId || provider.id}`}
+                    state={{ providerName: provider.name }}
+                  >
+                    View Profile
+                  </Link>
+                </div>
+              ))}
 
-      <section>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-bold">Recommended Nearby</h2>
-          <p className="text-sm text-slate-500">Sorted by the current API result and active filters.</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {visibleProviders.map((provider) => (
-            <div key={`card-${provider.id}`} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <Avatar src={provider.avatar} name={provider.name} className="w-12 h-12" />
-                <div>
-                  <h4 className="font-bold text-sm">{provider.name}</h4>
-                  <p className="text-xs text-slate-500">{provider.role}</p>
+              {visibleProviders.length === 0 ? (
+                <div className="col-span-full rounded-2xl border border-slate-100 bg-white p-8 text-center text-slate-500 sm:p-10">
+                  No providers match the selected filters.
                 </div>
-              </div>
-              <div className="mb-4 space-y-2 text-xs text-slate-600">
-                <div className="flex items-center justify-between">
-                  <span>Rating</span>
-                  <span className="font-bold">{provider.rating.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Location</span>
-                  <span className="max-w-[65%] truncate text-right font-medium">{provider.locationLabel}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Distance</span>
-                  <span className="font-medium">{provider.distanceKm !== null ? `${provider.distanceKm.toFixed(1)} km` : 'Unknown'}</span>
-                </div>
-              </div>
-              <Link
-                className="block w-full bg-[#2F4DA0] text-white text-xs font-bold py-2.5 rounded-xl hover:opacity-90 transition-opacity text-center"
-                to={`/customer/providers/${provider.userId || provider.id}`}
-                state={{ providerName: provider.name }}
-              >
-                View Profile
-              </Link>
+              ) : null}
             </div>
-          ))}
-
-          {!loading && visibleProviders.length === 0 ? (
-            <div className="col-span-full rounded-2xl border border-slate-100 bg-white p-8 text-center text-slate-500 sm:p-10">
-              No providers match the selected filters.
-            </div>
-          ) : null}
-        </div>
-      </section>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
