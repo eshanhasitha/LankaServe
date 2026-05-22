@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/Avatar.tsx';
+import JobImageGallery from '../../components/JobImageGallery.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { formatCoordinateText, reverseGeocodeLocation } from '../../lib/location.ts';
@@ -38,7 +39,7 @@ function normalizeStatus(status) {
 
 function StarRating({ value, onChange = undefined, readOnly = false, sizeClass = 'text-3xl' }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1" data-i18n-skip>
       {Array.from({ length: 5 }).map((_, index) => {
         const starValue = index + 1;
         const filled = starValue <= Number(value || 0);
@@ -47,7 +48,7 @@ function StarRating({ value, onChange = undefined, readOnly = false, sizeClass =
         if (readOnly) {
           return (
             <span key={`star-readonly-${starValue}`} className={commonClass}>
-              â˜…
+              ★
             </span>
           );
         }
@@ -60,7 +61,7 @@ function StarRating({ value, onChange = undefined, readOnly = false, sizeClass =
             onClick={() => onChange?.(starValue)}
             aria-label={`Rate ${starValue} star${starValue > 1 ? 's' : ''}`}
           >
-            â˜…
+            ★
           </button>
         );
       })}
@@ -108,8 +109,16 @@ function findActiveStep(timeline) {
 }
 
 function resolveProviderProfile(providers, providerId) {
-  if (!providerId) return null;
-  return providers.find((item) => String(item?.userId?._id || item?.userId) === String(providerId)) || null;
+  const providerUserId = getProviderUserId(providerId);
+  if (!providerUserId) return null;
+  return providers.find((item) => String(item?.userId?._id || item?.userId) === providerUserId) || null;
+}
+
+function getProviderUserId(providerId) {
+  if (!providerId) return '';
+  if (typeof providerId === 'string') return providerId;
+  if (typeof providerId === 'object') return String(providerId._id || providerId.id || '');
+  return String(providerId);
 }
 
 export default function CustomerJobDetailsPage() {
@@ -200,8 +209,9 @@ export default function CustomerJobDetailsPage() {
   const timeline = useMemo(() => getTimeline(job), [job]);
   const activeStepIndex = useMemo(() => findActiveStep(timeline), [timeline]);
 
-  const providerName = providerProfile?.userId?.name || (job?.providerId ? 'Assigned Provider' : 'Awaiting Provider');
-  const providerImage = providerProfile?.userId?.profileImage || '';
+  const providerUserId = getProviderUserId(job?.providerId);
+  const providerName = providerProfile?.userId?.name || job?.providerId?.name || (job?.providerId ? 'Assigned Provider' : 'Awaiting Provider');
+  const providerImage = providerProfile?.userId?.profileImage || job?.providerId?.profileImage || '';
   const providerCategories = Array.isArray(providerProfile?.categories) && providerProfile.categories.length
     ? providerProfile.categories.join(', ')
     : job?.category || 'General Service';
@@ -528,6 +538,8 @@ export default function CustomerJobDetailsPage() {
             </div>
           </div>
 
+          <JobImageGallery images={job.images} />
+
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold flex items-center gap-2">
@@ -771,10 +783,10 @@ export default function CustomerJobDetailsPage() {
                   {providerProfile?.verified ? 'Verified' : 'Pending'}
                 </span>
               </div>
-              {job.providerId ? (
+              {providerUserId ? (
                 <Link
                   className="block text-center py-2 text-[#2F4DA0] font-bold text-sm hover:bg-blue-50 rounded-lg transition-all border border-blue-100 mt-2"
-                  to={`/customer/find-providers/${job.providerId}`}
+                  to={`/customer/providers/${providerUserId}`}
                   state={{ providerName }}
                 >
                   View Profile

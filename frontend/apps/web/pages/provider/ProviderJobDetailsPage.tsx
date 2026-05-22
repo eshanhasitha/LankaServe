@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Avatar from '../../components/Avatar.tsx';
+import JobImageGallery from '../../components/JobImageGallery.tsx';
 import Skeleton from '../../components/Skeleton.tsx';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { apiRequest } from '../../lib/api.ts';
@@ -145,10 +146,7 @@ export default function ProviderJobDetailsPage() {
     try {
       const response = await apiRequest(`/reviews/job/${jobId}`, { headers });
       setReview(response?.data || null);
-    } catch (loadError) {
-      if (String(loadError?.message || '').toLowerCase().includes('not allowed')) {
-        throw loadError;
-      }
+    } catch {
       setReview(null);
     }
   }
@@ -415,6 +413,8 @@ export default function ProviderJobDetailsPage() {
               </div>
             </div>
           </div>
+
+          <JobImageGallery images={job.images} title="Customer Uploaded Images" />
 
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <div className="flex items-center justify-between mb-4">

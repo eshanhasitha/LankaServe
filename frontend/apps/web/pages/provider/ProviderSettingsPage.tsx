@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { apiRequest } from '../../lib/api.ts';
-import { uploadProfileImage } from '../../lib/profile-image-client.ts';
+import { uploadImageFile, uploadProfileImage } from '../../lib/profile-image-client.ts';
 import { changeCurrentUserPassword, getCurrentFirebaseAuthProvider } from '../../lib/firebase-client.ts';
 import Avatar from '../../components/Avatar.tsx';
 import Skeleton from '../../components/Skeleton.tsx';
@@ -20,6 +20,7 @@ export default function ProviderSettingsPage() {
   const [resolvedAuthProvider, setResolvedAuthProvider] = useState(user?.authProvider || null);
   const requiresCurrentPassword = resolvedAuthProvider !== 'google';
   const fileInputRef = useRef(null);
+  const verificationFileInputRef = useRef(null);
   const previewUrlRef = useRef('');
   const [activeTab, setActiveTab] = useState('profile');
   const [locationQuery, setLocationQuery] = useState('');
@@ -41,8 +42,28 @@ export default function ProviderSettingsPage() {
     yearsExperience: 0,
     availability: 'offline',
   });
+  const [verificationForm, setVerificationForm] = useState({
+    legalName: user?.name || '',
+    nicNumber: '',
+    phone: '',
+    address: '',
+    serviceArea: '',
+    businessRegistrationNumber: '',
+    notes: '',
+    verificationDocs: [],
+  });
+  const [verificationState, setVerificationState] = useState({
+    verified: false,
+    status: 'not_submitted',
+    submittedAt: null,
+    reviewedAt: null,
+    rejectionReason: '',
+  });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verificationSaving, setVerificationSaving] = useState(false);
+  const [verificationUploading, setVerificationUploading] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
@@ -108,6 +129,24 @@ export default function ProviderSettingsPage() {
           yearsExperience: provider?.yearsExperience || 0,
           availability: provider?.availability || 'offline',
         }));
+        const verification = provider?.verification || {};
+        setVerificationForm({
+          legalName: verification?.legalName || me?.name || '',
+          nicNumber: verification?.nicNumber || '',
+          phone: verification?.phone || '',
+          address: verification?.address || '',
+          serviceArea: verification?.serviceArea || [provider?.city, provider?.district].filter(Boolean).join(', '),
+          businessRegistrationNumber: verification?.businessRegistrationNumber || '',
+          notes: verification?.notes || '',
+          verificationDocs: Array.isArray(provider?.verificationDocs) ? provider.verificationDocs : [],
+        });
+        setVerificationState({
+          verified: Boolean(provider?.verified),
+          status: provider?.verified ? 'verified' : (verification?.status || 'not_submitted'),
+          submittedAt: verification?.submittedAt || null,
+          reviewedAt: verification?.reviewedAt || null,
+          rejectionReason: verification?.rejectionReason || '',
+        });
         setLocationQuery(
           [provider?.city || '', provider?.district || '']
             .filter(Boolean)
@@ -169,6 +208,11 @@ export default function ProviderSettingsPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function onVerificationField(key, value) {
+    setVerificationForm((prev) => ({ ...prev, [key]: value }));
+    setVerificationMessage('');
+  }
+
   function applyLocation(location) {
     setForm((prev) => ({
       ...prev,
@@ -224,6 +268,108 @@ export default function ProviderSettingsPage() {
     }
     setPhotoPreview('');
     onField('profileImage', '');
+  }
+
+  async function onSelectVerificationDocs(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length || !accessToken) return;
+
+    const remainingSlots = Math.max(0, 5 - verificationForm.verificationDocs.length);
+    const selectedFiles = files.slice(0, remainingSlots);
+    if (!selectedFiles.length) {
+      setVerificationMessage('You can upload up to 5 verification documents.');
+      event.target.value = '';
+      return;
+    }
+
+    setVerificationUploading(true);
+    setVerificationMessage('');
+    try {
+      const uploadedUrls = [];
+      for (const file of selectedFiles) {
+        const url = await uploadImageFile(file, accessToken, {
+          label: 'Verification document',
+          path: '/uploads/provider-verification',
+        });
+        uploadedUrls.push(url);
+      }
+      setVerificationForm((prev) => ({
+        ...prev,
+        verificationDocs: [...prev.verificationDocs, ...uploadedUrls].slice(0, 5),
+      }));
+    } catch (error) {
+      const message = error?.message || 'Verification document upload failed.';
+      setVerificationMessage(message);
+      notifyError(message);
+    } finally {
+      setVerificationUploading(false);
+      event.target.value = '';
+    }
+  }
+
+  function removeVerificationDoc(index) {
+    setVerificationForm((prev) => ({
+      ...prev,
+      verificationDocs: prev.verificationDocs.filter((_, itemIndex) => itemIndex !== index),
+    }));
+    setVerificationMessage('');
+  }
+
+  async function submitVerification() {
+    if (!accessToken || verificationSaving) return;
+
+    const payload = {
+      ...verificationForm,
+      legalName: verificationForm.legalName.trim(),
+      nicNumber: verificationForm.nicNumber.trim(),
+      phone: verificationForm.phone.trim(),
+      address: verificationForm.address.trim(),
+      serviceArea: verificationForm.serviceArea.trim(),
+      businessRegistrationNumber: verificationForm.businessRegistrationNumber.trim(),
+      notes: verificationForm.notes.trim(),
+    };
+
+    if (!payload.legalName || !payload.nicNumber || !payload.phone || !payload.address || !payload.serviceArea) {
+      setVerificationMessage('Fill legal name, NIC/passport, phone, address, and service area.');
+      return;
+    }
+
+    if (!payload.verificationDocs.length) {
+      setVerificationMessage('Upload at least one verification document image.');
+      return;
+    }
+
+    setVerificationSaving(true);
+    setVerificationMessage('');
+    try {
+      const headers = { Authorization: `Bearer ${accessToken}` };
+      const response = await apiRequest('/providers/verification', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const provider = response?.data || {};
+      const verification = provider?.verification || {};
+      setVerificationForm((prev) => ({
+        ...prev,
+        ...payload,
+        verificationDocs: Array.isArray(provider?.verificationDocs) ? provider.verificationDocs : payload.verificationDocs,
+      }));
+      setVerificationState({
+        verified: Boolean(provider?.verified),
+        status: provider?.verified ? 'verified' : (verification?.status || 'pending'),
+        submittedAt: verification?.submittedAt || null,
+        reviewedAt: verification?.reviewedAt || null,
+        rejectionReason: verification?.rejectionReason || '',
+      });
+      setVerificationMessage('Verification submitted for admin review.');
+    } catch (error) {
+      const message = error?.message || 'Verification could not be submitted.';
+      setVerificationMessage(message);
+      notifyError(message);
+    } finally {
+      setVerificationSaving(false);
+    }
   }
 
   async function updatePasswordSettings() {
@@ -312,6 +458,8 @@ export default function ProviderSettingsPage() {
     }
   }
 
+  const verificationBadge = getVerificationBadge(verificationState);
+
   return (
     <div className="p-8 max-w-[1440px] mx-auto space-y-6">
       <header>
@@ -342,11 +490,11 @@ export default function ProviderSettingsPage() {
           <section className="mt-8 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Trust Level</p>
             <h3 className="text-2xl font-bold text-slate-800 mb-3">Verification Status</h3>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-lg font-bold">
-              <span className="material-symbols-outlined text-lg">warning</span>
-              Pending
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-lg font-bold ${verificationBadge.className}`}>
+              <span className="material-symbols-outlined text-lg">{verificationBadge.icon}</span>
+              {verificationBadge.label}
             </div>
-            <p className="text-sm text-slate-500 mt-4">Complete verification to get the "Verified Provider" badge.</p>
+            <p className="text-sm text-slate-500 mt-4">{verificationBadge.help}</p>
           </section>
         </aside>
 
@@ -556,10 +704,104 @@ export default function ProviderSettingsPage() {
           ) : null}
 
           {activeTab === 'verification' ? (
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
-              <span className="material-symbols-outlined text-4xl text-slate-300">verified_user</span>
-              <h2 className="mt-3 text-lg font-bold text-slate-800">Verification</h2>
-              <p className="text-sm text-slate-500 mt-1">Verification details are loaded from your provider profile and can be expanded in the next step.</p>
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <header className="p-6 border-b border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Provider Verification</h2>
+                  <p className="text-sm text-slate-500 mt-1">Submit identity and service proof for admin review.</p>
+                </div>
+                <div className={`inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold ${verificationBadge.className}`}>
+                  <span className="material-symbols-outlined text-lg">{verificationBadge.icon}</span>
+                  {verificationBadge.label}
+                </div>
+              </header>
+
+              <form className="p-6 space-y-6" onSubmit={(event) => { event.preventDefault(); submitVerification(); }}>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-slate-600">
+                  <span className="font-semibold text-[#2F4DA0]">Required:</span> upload a clear NIC/passport image and any trade certificate, business registration, or work proof you have.
+                  {verificationState.submittedAt ? (
+                    <span className="block mt-1 text-xs text-slate-500">Last submitted {formatVerificationDate(verificationState.submittedAt)}.</span>
+                  ) : null}
+                  {verificationState.rejectionReason ? (
+                    <span className="block mt-1 text-xs font-semibold text-red-600">Rejected reason: {verificationState.rejectionReason}</span>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Legal Full Name">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="text" value={verificationForm.legalName} onChange={(event) => onVerificationField('legalName', event.target.value)} />
+                  </Field>
+                  <Field label="NIC / Passport Number">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="text" value={verificationForm.nicNumber} onChange={(event) => onVerificationField('nicNumber', event.target.value)} />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Phone Number">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" placeholder="+94 77 123 4567" type="tel" value={verificationForm.phone} onChange={(event) => onVerificationField('phone', event.target.value)} />
+                  </Field>
+                  <Field label="Primary Service Area">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" placeholder="Colombo, Dehiwala, Kandy..." type="text" value={verificationForm.serviceArea} onChange={(event) => onVerificationField('serviceArea', event.target.value)} />
+                  </Field>
+                </div>
+
+                <Field label="Residential / Business Address">
+                  <textarea className="w-full rounded-xl border-slate-200 text-sm resize-none focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" rows={3} value={verificationForm.address} onChange={(event) => onVerificationField('address', event.target.value)} />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Business Registration Number (Optional)">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" type="text" value={verificationForm.businessRegistrationNumber} onChange={(event) => onVerificationField('businessRegistrationNumber', event.target.value)} />
+                  </Field>
+                  <Field label="Reviewer Notes (Optional)">
+                    <input className="w-full h-12 rounded-xl border-slate-200 text-sm focus:border-[#2F4DA0] focus:ring-[#2F4DA0]" placeholder="Certificate type, years active, etc." type="text" value={verificationForm.notes} onChange={(event) => onVerificationField('notes', event.target.value)} />
+                  </Field>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-700">Verification Documents</h3>
+                      <p className="text-xs text-slate-400">Upload up to 5 JPG, PNG, or WEBP images. Max 5MB each.</p>
+                    </div>
+                    <input ref={verificationFileInputRef} className="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" multiple onChange={onSelectVerificationDocs} />
+                    <button className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-[#2F4DA0] hover:bg-blue-50 disabled:opacity-60" type="button" disabled={verificationUploading || verificationForm.verificationDocs.length >= 5} onClick={() => verificationFileInputRef.current?.click()}>
+                      {verificationUploading ? 'Uploading...' : 'Upload Documents'}
+                    </button>
+                  </div>
+
+                  {verificationForm.verificationDocs.length ? (
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                      {verificationForm.verificationDocs.map((url, index) => (
+                        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50" key={`${url}-${index}`}>
+                          <img className="h-36 w-full object-cover" src={url} alt={`Verification document ${index + 1}`} />
+                          <div className="flex items-center justify-between px-3 py-2">
+                            <a className="truncate text-xs font-semibold text-[#2F4DA0] hover:underline" href={url} target="_blank" rel="noreferrer">Document {index + 1}</a>
+                            <button className="text-xs font-bold text-red-500" type="button" onClick={() => removeVerificationDoc(index)}>Remove</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <button className="flex min-h-[160px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-[#2F4DA0] hover:bg-blue-50/40" type="button" onClick={() => verificationFileInputRef.current?.click()}>
+                      <span className="material-symbols-outlined text-4xl text-slate-400">upload_file</span>
+                      <span className="mt-2 text-sm font-semibold text-slate-600">Click to upload verification documents</span>
+                      <span className="text-xs text-slate-400">NIC/passport, certificate, or business proof</span>
+                    </button>
+                  )}
+                </div>
+
+                {verificationMessage ? (
+                  <p className={`text-sm ${verificationMessage.toLowerCase().includes('submitted') ? 'text-emerald-600' : 'text-red-600'}`}>{verificationMessage}</p>
+                ) : null}
+
+                <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
+                  <button className="px-9 py-2.5 rounded-2xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50" type="button" onClick={() => setActiveTab('profile')}>Cancel</button>
+                  <button className="px-10 py-2.5 rounded-2xl bg-[#2F4DA0] text-white text-sm font-bold shadow-lg shadow-blue-400/20 hover:opacity-90 disabled:opacity-60" type="submit" disabled={verificationSaving || verificationUploading}>
+                    {verificationSaving ? 'Submitting...' : 'Submit Verification'}
+                  </button>
+                </div>
+              </form>
             </section>
           ) : null}
         </div>
@@ -575,6 +817,53 @@ function Field({ label, children }) {
       {children}
     </div>
   );
+}
+
+function getVerificationBadge(state) {
+  const status = state?.verified ? 'verified' : String(state?.status || 'not_submitted');
+  if (status === 'verified') {
+    return {
+      label: 'Verified',
+      icon: 'verified',
+      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      help: 'Your verified provider badge is active.',
+    };
+  }
+  if (status === 'pending') {
+    return {
+      label: 'Pending',
+      icon: 'schedule',
+      className: 'bg-amber-50 text-amber-700 border-amber-200',
+      help: 'Your verification is waiting for admin review.',
+    };
+  }
+  if (status === 'rejected') {
+    return {
+      label: 'Rejected',
+      icon: 'error',
+      className: 'bg-red-50 text-red-700 border-red-200',
+      help: state?.rejectionReason || 'Update your details and submit again.',
+    };
+  }
+  return {
+    label: 'Not Submitted',
+    icon: 'warning',
+    className: 'bg-slate-50 text-slate-600 border-slate-200',
+    help: 'Complete verification to get the "Verified Provider" badge.',
+  };
+}
+
+function formatVerificationDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function getPasswordStrength(password = '') {

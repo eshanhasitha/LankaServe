@@ -10,13 +10,27 @@ import Avatar from '../../components/Avatar.tsx';
 const defaultFilters = {
   query: '',
   category: 'ALL',
-  distance: 50,
+  distance: null,
   minRating: 0,
   experience: 'ANY',
   availableNow: false,
+  verifiedOnly: false,
   topRated: false,
-  reliableBadge: false,
 };
+
+const distanceOptions = [5, 10, 25, 50];
+const ratingOptions = [
+  { label: 'Any', value: 0 },
+  { label: '4.0+', value: 4 },
+  { label: '4.5+', value: 4.5 },
+  { label: '5.0', value: 5 },
+];
+const experienceOptions = [
+  { label: 'Any', value: 'ANY' },
+  { label: '1+ yrs', value: '1+' },
+  { label: '3+ yrs', value: '3+' },
+  { label: '5+ yrs', value: '5+' },
+];
 
 function normalizeCategory(value) {
   const normalized = normalizeServiceCategory(value);
@@ -182,16 +196,18 @@ export default function CustomerFindProvidersPage() {
         provider.categoryLabel.toLowerCase().includes(query) ||
         provider.locationLabel.toLowerCase().includes(query);
       const distanceMatch =
-        customerCoords && provider.distanceKm !== null ? provider.distanceKm <= applied.distance : true;
+        applied.distance && customerCoords && provider.distanceKm !== null
+          ? provider.distanceKm <= applied.distance
+          : true;
       const ratingMatch = provider.rating >= applied.minRating;
       const experienceMatch =
         applied.experience === 'ANY' ||
-        (applied.experience === '1-3' && provider.years >= 1 && provider.years <= 3) ||
-        (applied.experience === '3-5' && provider.years >= 3 && provider.years <= 5) ||
+        (applied.experience === '1+' && provider.years >= 1) ||
+        (applied.experience === '3+' && provider.years >= 3) ||
         (applied.experience === '5+' && provider.years >= 5);
       const onlineMatch = !applied.availableNow || provider.online;
       const topRatedMatch = !applied.topRated || provider.topRated;
-      const reliableBadgeMatch = !applied.reliableBadge || provider.reliableBadge;
+      const verifiedMatch = !applied.verifiedOnly || provider.reliableBadge;
 
       return (
         categoryMatch &&
@@ -201,7 +217,7 @@ export default function CustomerFindProvidersPage() {
         experienceMatch &&
         onlineMatch &&
         topRatedMatch &&
-        reliableBadgeMatch
+        verifiedMatch
       );
     });
   }, [applied, customerCoords, providers]);
@@ -220,69 +236,79 @@ export default function CustomerFindProvidersPage() {
       </div>
 
       <div className="flex gap-8 items-start">
-        <aside className="w-[280px] flex-shrink-0 sticky top-[calc(70px+2rem)]">
-          <div className="bg-white rounded-[16px] p-6 shadow-sm space-y-6">
+        <aside className="w-[300px] flex-shrink-0 sticky top-[calc(70px+2rem)]">
+          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100 space-y-5">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-bold text-slate-800">Filters</h2>
-              <button
-                className="text-[#2F4DA0] text-xs font-semibold hover:underline"
-                type="button"
-                onClick={() => {
-                  setDraft(defaultFilters);
-                  setApplied(defaultFilters);
-                }}
-              >
-                Reset
-              </button>
+              <div>
+                <h2 className="font-bold text-slate-900">Filters</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">Refine provider results</p>
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</label>
-              <select
-                className="w-full border border-slate-200 rounded-xl text-sm focus:ring-[#2F4DA0] focus:border-[#2F4DA0] outline-none"
-                value={draft.category}
-                onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
-              >
-                <option value="ALL">All Categories</option>
-                {SERVICE_CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  className="w-full appearance-none border border-slate-200 bg-slate-50 rounded-xl px-3 py-2.5 pr-9 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-[#2F4DA0]/20 focus:border-[#2F4DA0] outline-none"
+                  value={draft.category}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
+                >
+                  <option value="ALL">All Categories</option>
+                  {SERVICE_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">expand_more</span>
+              </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Distance</label>
-                <span className="text-xs font-bold text-[#2F4DA0]">{draft.distance}km</span>
+                <span className="text-xs font-bold text-[#2F4DA0]">
+                  {!customerCoords ? 'Location needed' : draft.distance ? `Within ${draft.distance} km` : 'All distances'}
+                </span>
               </div>
-              <input
-                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#2F4DA0] disabled:opacity-40"
-                disabled={!customerCoords}
-                max="50"
-                min="0"
-                type="range"
-                value={draft.distance}
-                onChange={(event) => setDraft((prev) => ({ ...prev, distance: Number(event.target.value) }))}
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                <span>0km</span>
-                <span>{customerCoords ? customerLocationLabel || 'Saved customer location' : 'Set your location in Settings'}</span>
+              <div className="grid grid-cols-4 gap-2">
+                {distanceOptions.map((value) => (
+                  <button
+                    key={value}
+                    className={`rounded-xl border px-2 py-2 text-xs font-bold transition-all ${
+                      draft.distance === value
+                        ? 'bg-[#2F4DA0] text-white border-[#2F4DA0] shadow-sm'
+                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-200'
+                    } ${!customerCoords ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!customerCoords}
+                    type="button"
+                    onClick={() => setDraft((prev) => ({ ...prev, distance: value }))}
+                  >
+                    {value}km
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-start gap-1.5 text-[10px] text-slate-400 font-medium">
+                <span className="material-symbols-outlined text-sm">location_on</span>
+                <span>{customerCoords ? customerLocationLabel || 'Using saved customer location' : 'Set your location in Settings to filter by distance'}</span>
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Minimum Rating</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((value) => (
+              <div className="grid grid-cols-4 gap-2">
+                {ratingOptions.map((option) => (
                   <button
-                    key={value}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center border ${value <= draft.minRating ? 'bg-yellow-50 text-yellow-500 border-yellow-200' : 'bg-slate-50 text-slate-300 border-slate-100'}`}
+                    key={option.value}
+                    className={`rounded-xl border px-2 py-2 text-xs font-bold transition-all ${
+                      draft.minRating === option.value
+                        ? 'bg-yellow-50 text-yellow-600 border-yellow-200'
+                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-200'
+                    }`}
                     type="button"
-                    onClick={() => setDraft((prev) => ({ ...prev, minRating: value }))}
+                    onClick={() => setDraft((prev) => ({ ...prev, minRating: option.value }))}
                   >
-                    <span className="material-symbols-outlined text-base">star</span>
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -290,54 +316,49 @@ export default function CustomerFindProvidersPage() {
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Experience</label>
-              <select
-                className="w-full border border-slate-200 rounded-xl text-sm focus:ring-[#2F4DA0] focus:border-[#2F4DA0] outline-none"
-                value={draft.experience}
-                onChange={(event) => setDraft((prev) => ({ ...prev, experience: event.target.value }))}
-              >
-                <option value="ANY">Any Experience</option>
-                <option value="1-3">1-3 Years</option>
-                <option value="3-5">3-5 Years</option>
-                <option value="5+">5+ Years</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm font-semibold text-slate-700">Available Now</span>
-              <button
-                className={`w-10 h-5 rounded-full relative transition-all ${draft.availableNow ? 'bg-[#2F4DA0]' : 'bg-slate-300'}`}
-                type="button"
-                onClick={() => setDraft((prev) => ({ ...prev, availableNow: !prev.availableNow }))}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${draft.availableNow ? 'right-0.5' : 'left-0.5'}`} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Verification</label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    className="w-4 h-4 rounded text-[#2F4DA0] focus:ring-[#2F4DA0] border-slate-300"
-                    checked={draft.topRated}
-                    type="checkbox"
-                    onChange={(event) => setDraft((prev) => ({ ...prev, topRated: event.target.checked }))}
-                  />
-                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Top Rated</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    className="w-4 h-4 rounded text-[#2F4DA0] focus:ring-[#2F4DA0] border-slate-300"
-                    checked={draft.reliableBadge}
-                    type="checkbox"
-                    onChange={(event) => setDraft((prev) => ({ ...prev, reliableBadge: event.target.checked }))}
-                  />
-                  <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">Reliable Badge</span>
-                </label>
+              <div className="grid grid-cols-4 gap-2">
+                {experienceOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    className={`rounded-xl border px-2 py-2 text-xs font-bold transition-all ${
+                      draft.experience === option.value
+                        ? 'bg-[#2F4DA0] text-white border-[#2F4DA0] shadow-sm'
+                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-200'
+                    }`}
+                    type="button"
+                    onClick={() => setDraft((prev) => ({ ...prev, experience: option.value }))}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="pt-4 flex flex-col gap-3">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Filters</label>
+              <div className="grid grid-cols-1 gap-2">
+                <FilterToggle
+                  active={draft.availableNow}
+                  icon="radio_button_checked"
+                  label="Available now"
+                  onClick={() => setDraft((prev) => ({ ...prev, availableNow: !prev.availableNow }))}
+                />
+                <FilterToggle
+                  active={draft.verifiedOnly}
+                  icon="verified"
+                  label="Verified providers"
+                  onClick={() => setDraft((prev) => ({ ...prev, verifiedOnly: !prev.verifiedOnly }))}
+                />
+                <FilterToggle
+                  active={draft.topRated}
+                  icon="star"
+                  label="Top rated"
+                  onClick={() => setDraft((prev) => ({ ...prev, topRated: !prev.topRated }))}
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-3">
               <button
                 className="w-full bg-[#2F4DA0] text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all active:scale-[0.98]"
                 type="button"
@@ -451,6 +472,28 @@ export default function CustomerFindProvidersPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FilterToggle({ active, icon, label, onClick }) {
+  return (
+    <button
+      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+        active
+          ? 'border-[#2F4DA0] bg-blue-50 text-[#2F4DA0]'
+          : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'
+      }`}
+      type="button"
+      onClick={onClick}
+    >
+      <span className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-lg">{icon}</span>
+        {label}
+      </span>
+      <span className={`h-5 w-5 rounded-full border flex items-center justify-center ${active ? 'border-[#2F4DA0] bg-[#2F4DA0] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+        <span className="material-symbols-outlined text-sm">check</span>
+      </span>
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,6 +7,7 @@ import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { reverseGeocodeLocation } from '../../lib/location.ts';
 import { SERVICE_CATEGORY_OPTIONS, normalizeServiceCategory } from '../../lib/service-categories.ts';
+import { uploadServiceImage } from '../../lib/profile-image-client.ts';
 import Skeleton from '../../components/Skeleton.tsx';
 
 const DEFAULT_LOCATION = {
@@ -23,6 +24,10 @@ const FALLBACK_CITIES = [
   { label: 'Kurunegala, Sri Lanka', district: 'Kurunegala', coordinates: [80.3647, 7.4863] },
   { label: 'Batticaloa, Sri Lanka', district: 'Batticaloa', coordinates: [81.6936, 7.7102] },
 ];
+
+const MAX_SERVICE_IMAGES = 5;
+const MAX_SERVICE_IMAGE_SIZE = 5 * 1024 * 1024;
+const SUPPORTED_SERVICE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/jpg']);
 
 const locationPin = L.divIcon({
   className: 'customer-job-location-pin',
@@ -103,6 +108,8 @@ export default function CustomerPostServicePage() {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
   const routeLocation = useLocation();
+  const imageInputRef = useRef(null);
+  const objectUrlsRef = useRef(new Set());
   const editJobId = routeLocation.state?.editJobId || '';
   const preferredProviderId = routeLocation.state?.preferredProviderId || '';
   const preferredProviderName = routeLocation.state?.preferredProviderName || '';
@@ -120,12 +127,19 @@ export default function CustomerPostServicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [imageError, setImageError] = useState('');
+  const [serviceImages, setServiceImages] = useState([]);
 
   const fallbackSuggestions = useMemo(() => {
     const query = address.trim().toLowerCase();
     if (!query) return FALLBACK_CITIES;
     return FALLBACK_CITIES.filter((city) => city.label.toLowerCase().includes(query) || city.district.toLowerCase().includes(query));
   }, [address]);
+
+  useEffect(() => () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url as string));
+    objectUrlsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     if (editJobId) return;
@@ -196,6 +210,16 @@ export default function CustomerPostServicePage() {
         setCategory(normalizeServiceCategory(nextJob.category || ''));
         setDescription(nextJob.description || '');
         setBudget(String(nextJob.price ?? ''));
+        setServiceImages(
+          Array.isArray(nextJob.images)
+            ? nextJob.images.filter(Boolean).slice(0, MAX_SERVICE_IMAGES).map((url, index) => ({
+              id: `existing-${index}-${url}`,
+              name: `Uploaded image ${index + 1}`,
+              previewUrl: url,
+              uploadedUrl: url,
+            }))
+            : []
+        );
 
         const coords = Array.isArray(nextJob.location?.coordinates) && nextJob.location.coordinates.length === 2
           ? nextJob.location.coordinates
@@ -237,6 +261,74 @@ export default function CustomerPostServicePage() {
     setShowSuggestions(false);
   }
 
+  function createPreviewUrl(file) {
+    const url = URL.createObjectURL(file);
+    objectUrlsRef.current.add(url);
+    return url;
+  }
+
+  function revokePreviewUrl(url) {
+    if (objectUrlsRef.current.has(url)) {
+      URL.revokeObjectURL(url);
+      objectUrlsRef.current.delete(url);
+    }
+  }
+
+  function addImageFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    setImageError('');
+    setServiceImages((current) => {
+      const availableSlots = MAX_SERVICE_IMAGES - current.length;
+      if (availableSlots <= 0) {
+        setImageError(`You can upload up to ${MAX_SERVICE_IMAGES} images.`);
+        return current;
+      }
+
+      const accepted = [];
+      const rejected = [];
+
+      files.slice(0, availableSlots).forEach((file: File) => {
+        if (!SUPPORTED_SERVICE_IMAGE_TYPES.has(file.type)) {
+          rejected.push(`${file.name} is not a JPG, PNG, or WEBP image.`);
+          return;
+        }
+
+        if (file.size > MAX_SERVICE_IMAGE_SIZE) {
+          rejected.push(`${file.name} is larger than 5MB.`);
+          return;
+        }
+
+        accepted.push({
+          id: `${file.name}-${file.lastModified}-${crypto.randomUUID?.() || Date.now()}`,
+          file,
+          name: file.name,
+          previewUrl: createPreviewUrl(file),
+        });
+      });
+
+      if (files.length > availableSlots) {
+        rejected.push(`Only ${availableSlots} more image${availableSlots === 1 ? '' : 's'} can be added.`);
+      }
+
+      if (rejected.length) {
+        setImageError(rejected[0]);
+      }
+
+      return accepted.length ? [...current, ...accepted] : current;
+    });
+  }
+
+  function removeImage(id) {
+    setImageError('');
+    setServiceImages((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target?.previewUrl) revokePreviewUrl(target.previewUrl);
+      return current.filter((item) => item.id !== id);
+    });
+  }
+
   async function handleMapSelect(latlng) {
     const resolved = await reverseGeocodeLocation([latlng.lng, latlng.lat]);
     setSelectedLocation(resolved);
@@ -255,6 +347,12 @@ export default function CustomerPostServicePage() {
     setShowSuggestions(false);
     setError('');
     setSuccess('');
+    setImageError('');
+    serviceImages.forEach((item) => {
+      if (item.previewUrl) revokePreviewUrl(item.previewUrl);
+    });
+    setServiceImages([]);
+    if (imageInputRef.current) imageInputRef.current.value = '';
   }
 
   async function onSubmit(event) {
@@ -265,6 +363,15 @@ export default function CustomerPostServicePage() {
 
     try {
       const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+      const imageUrls = [];
+      for (const item of serviceImages) {
+        if (item.uploadedUrl) {
+          imageUrls.push(item.uploadedUrl);
+        } else if (item.file) {
+          imageUrls.push(await uploadServiceImage(item.file, accessToken));
+        }
+      }
+
       await apiRequest(editJobId ? `/jobs/${editJobId}` : '/jobs', {
         method: editJobId ? 'PUT' : 'POST',
         headers,
@@ -273,7 +380,7 @@ export default function CustomerPostServicePage() {
           description: description.trim(),
           category,
           location: { type: 'Point', coordinates: selectedLocation.coordinates },
-          images: [],
+          images: imageUrls,
           price: Number(budget) || 0,
           preferredProviderId: preferredProviderId || null,
         }),
@@ -413,11 +520,52 @@ export default function CustomerPostServicePage() {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Upload Images (Optional)</label>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100/50 transition-colors cursor-pointer">
+              <input
+                ref={imageInputRef}
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                className="hidden"
+                multiple
+                onChange={(event) => {
+                  addImageFiles(event.target.files);
+                  event.target.value = '';
+                }}
+                type="file"
+              />
+              <button
+                className="w-full border-2 border-dashed border-slate-200 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#2F4DA0] focus:ring-offset-2"
+                onClick={() => imageInputRef.current?.click()}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  addImageFiles(event.dataTransfer.files);
+                }}
+                type="button"
+              >
                 <span className="material-symbols-outlined text-slate-400 text-4xl mb-2">image</span>
                 <p className="text-sm text-slate-500 font-medium">Click or drag images to upload</p>
-                <p className="text-xs text-slate-400 mt-1">Up to 5 images, max 5MB each</p>
-              </div>
+                <p className="text-xs text-slate-400 mt-1">{serviceImages.length}/{MAX_SERVICE_IMAGES} selected, max 5MB each</p>
+              </button>
+              {imageError ? <p className="mt-2 text-sm text-red-600">{imageError}</p> : null}
+              {serviceImages.length > 0 ? (
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                  {serviceImages.map((image) => (
+                    <div key={image.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                      <img alt={image.name} className="h-24 w-full object-cover" src={image.previewUrl} />
+                      <button
+                        aria-label={`Remove ${image.name}`}
+                        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-600 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                        onClick={() => removeImage(image.id)}
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined text-base">close</span>
+                      </button>
+                      <div className="px-2 py-1">
+                        <p className="truncate text-[11px] font-medium text-slate-500">{image.name}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -438,4 +586,5 @@ export default function CustomerPostServicePage() {
     </div>
   );
 }
+
 

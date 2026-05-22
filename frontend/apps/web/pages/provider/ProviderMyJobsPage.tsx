@@ -18,10 +18,41 @@ function toCurrency(value) {
 
 function statusPill(status) {
   const s = String(status || '').toLowerCase();
-  if (s === 'ongoing') return { label: 'In Progress', className: 'bg-blue-100 text-[#2F4DA0]' };
-  if (s === 'arrived') return { label: 'Arrived', className: 'bg-emerald-100 text-emerald-600' };
-  if (s === 'completed' || s === 'paid') return { label: 'Completed', className: 'bg-emerald-100 text-emerald-600' };
-  return { label: 'Accepted', className: 'bg-blue-100 text-[#2F4DA0]' };
+  if (s === 'ongoing') return { label: 'In Progress', className: 'bg-blue-50 text-[#2F4DA0]' };
+  if (s === 'arrived') return { label: 'Arrived', className: 'bg-emerald-50 text-emerald-600' };
+  if (s === 'completed' || s === 'paid') return { label: 'Completed', className: 'bg-emerald-50 text-emerald-600' };
+  return { label: 'Accepted', className: 'bg-blue-50 text-[#2F4DA0]' };
+}
+
+function categoryPill(category) {
+  return {
+    label: category || 'General',
+    className: 'bg-blue-50 text-blue-600',
+  };
+}
+
+function formatShortDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function statusLine(job, badgeLabel) {
+  const status = String(job?.status || '').toLowerCase();
+  if (status === 'completed' || status === 'paid') {
+    const date = formatShortDate(job?.completedAt || job?.paidAt || job?.updatedAt);
+    return date ? `Finished ${date}` : 'Finished';
+  }
+  if (status === 'accepted') {
+    const date = formatShortDate(job?.acceptedAt || job?.updatedAt || job?.createdAt);
+    return date ? `Accepted ${date}` : 'Accepted';
+  }
+  if (status === 'arrived') {
+    const date = formatShortDate(job?.arrivedAt || job?.updatedAt);
+    return date ? `Arrived ${date}` : 'Arrived';
+  }
+  return badgeLabel;
 }
 
 function formatLocation(job) {
@@ -153,10 +184,14 @@ export default function ProviderMyJobsPage() {
       <section className="space-y-4">
         {!loading && jobs.map((job) => {
           const badge = statusPill(job.status);
+          const category = categoryPill(job.category);
           return (
             <JobListCard
               key={job._id}
-              badges={[{ label: badge.label, className: badge.className }]}
+              badges={[
+                { label: category.label, className: category.className },
+                { label: badge.label, className: badge.className },
+              ]}
               title={job.title || 'Untitled Job'}
               infoBlocks={[
                 {
@@ -174,10 +209,10 @@ export default function ProviderMyJobsPage() {
                 },
                 {
                   type: 'icon',
-                  icon: 'info',
+                  icon: 'timer',
                   label: 'Status',
-                  value: badge.label,
-                  valueClassName: 'text-[#2F4DA0]',
+                  value: statusLine(job, badge.label),
+                  valueClassName: 'text-slate-900',
                 },
               ]}
               rightSummary={{ label: 'Budget', value: toCurrency(job.price) }}

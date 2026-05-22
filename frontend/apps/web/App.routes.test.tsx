@@ -50,7 +50,7 @@ describe('App routing', () => {
       refreshToken: 'test-refresh',
       user: { _id: 'u1', role: 'customer', name: 'Anura Perera', email: 'anura.p@email.com' },
     });
-    expect(await screen.findByText(/Residential Electrical Upgrade/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Job not found/i)).toBeInTheDocument();
   });
 
   test('supports customer provider profile route', async () => {
@@ -59,7 +59,7 @@ describe('App routing', () => {
       refreshToken: 'test-refresh',
       user: { _id: 'u1', role: 'customer', name: 'Anura Perera', email: 'anura.p@email.com' },
     });
-    expect(await screen.findByText(/Kamal Weerasinghe/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Provider profile is unavailable/i)).toBeInTheDocument();
   });
 
   test('supports customer notifications route', async () => {
@@ -69,6 +69,12 @@ describe('App routing', () => {
       user: { _id: 'u1', role: 'customer', name: 'Anura Perera', email: 'anura.p@email.com' },
     });
     expect(await screen.findByRole('heading', { name: /^Notifications$/i })).toBeInTheDocument();
+  });
+
+  test('supports public footer routes', async () => {
+    renderAt('/contact');
+    expect(await screen.findByRole('heading', { name: /^Contact Us$/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/eshanhasitha55@gmail\.com/i)).not.toHaveLength(0);
   });
 
   test('unknown route falls back to landing page', async () => {

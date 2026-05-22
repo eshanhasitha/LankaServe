@@ -56,8 +56,16 @@ function formatDurationText(job) {
 }
 
 function resolveProviderProfile(providers, providerId) {
-  if (!providerId) return null;
-  return providers.find((item) => String(item?.userId?._id || item?.userId) === String(providerId)) || null;
+  const providerUserId = getProviderUserId(providerId);
+  if (!providerUserId) return null;
+  return providers.find((item) => String(item?.userId?._id || item?.userId) === providerUserId) || null;
+}
+
+function getProviderUserId(providerId) {
+  if (!providerId) return '';
+  if (typeof providerId === 'string') return providerId;
+  if (typeof providerId === 'object') return String(providerId._id || providerId.id || '');
+  return String(providerId);
 }
 
 async function loadMissingProviderProfiles(items, providers, headers) {
@@ -66,7 +74,8 @@ async function loadMissingProviderProfiles(items, providers, headers) {
       items
         .map((job) => job.providerId)
         .filter(Boolean)
-        .map((providerId) => String(providerId))
+        .map((providerId) => getProviderUserId(providerId))
+        .filter(Boolean)
         .filter((providerId) => !resolveProviderProfile(providers, providerId))
     ),
   ];

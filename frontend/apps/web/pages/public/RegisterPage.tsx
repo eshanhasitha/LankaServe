@@ -4,12 +4,17 @@ import { useAuth } from '../../lib/auth-context.tsx';
 import { loginWithGooglePopup, registerWithEmailPassword } from '../../lib/firebase-client.ts';
 import { SERVICE_CATEGORIES } from '../../lib/service-categories.ts';
 import { notifyError } from '../../lib/toast.ts';
+import {
+  getInitialLandingLanguage,
+  languageOptions,
+  languageStorageKey,
+  type LanguageCode,
+} from './landing-i18n.ts';
+import { authCopy } from './public-auth-i18n.ts';
 
-// Matches Login page input style exactly
 const inputClass =
   'w-full h-12 px-4 bg-white border border-slate-200 rounded-[10px] text-sm text-[#111827] placeholder:text-slate-400 outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all';
 
-// Matches Login page label style exactly
 const labelClass = 'block text-[10px] font-bold tracking-widest text-[#6B7280] uppercase mb-2';
 const DEFAULT_PROVIDER_LOCATION = {
   label: 'Colombo, Sri Lanka',
@@ -52,11 +57,18 @@ export default function RegisterPage() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [language, setLanguage] = useState<LanguageCode>(getInitialLandingLanguage);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const { loginWithToken, registerWithToken } = useAuth();
   const navigate = useNavigate();
+  const copy = authCopy[language];
+
+  useEffect(() => {
+    window.localStorage.setItem(languageStorageKey, language);
+    document.documentElement.lang = language;
+  }, [language]);
 
   const fallbackSuggestions = useMemo(() => {
     const query = serviceArea.trim().toLowerCase();
@@ -88,7 +100,7 @@ export default function RegisterPage() {
           }
         );
 
-        if (!response.ok) throw new Error('Location search failed');
+        if (!response.ok) throw new Error(copy.register.errors.locationSearch);
         const payload = await response.json();
         const mapped = Array.isArray(payload) ? payload.map(mapSearchResult) : [];
         setLocationSuggestions(mapped.length ? mapped : fallbackSuggestions);
@@ -105,7 +117,7 @@ export default function RegisterPage() {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [fallbackSuggestions, role, serviceArea]);
+  }, [copy.register.errors.locationSearch, fallbackSuggestions, role, serviceArea]);
 
   function applyProviderLocation(location) {
     setProviderLocation(location);
@@ -129,23 +141,23 @@ export default function RegisterPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      if (!fullName.trim()) throw new Error('Please enter your full name.');
-      if (!email.trim()) throw new Error('Please enter your email address.');
+      if (!fullName.trim()) throw new Error(copy.register.errors.fullName);
+      if (!email.trim()) throw new Error(copy.register.errors.email);
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(email.trim())) throw new Error('Please enter a valid email address.');
-      if (!email.trim().endsWith('@gmail.com')) throw new Error('Please use a valid Gmail email address.');
-      if (!phoneNumber.trim()) throw new Error('Please enter your phone number.');
-      if (!address.trim()) throw new Error('Please enter your address.');
-      if (password !== confirmPassword) throw new Error('Passwords do not match.');
-      if (!agreeTerms) throw new Error('Please accept terms and privacy policy.');
-      if (role === 'provider' && !serviceCategory) throw new Error('Please select a service category.');
-      if (role === 'provider' && !serviceArea.trim()) throw new Error('Please select your service area.');
+      if (!emailRegex.test(email.trim())) throw new Error(copy.register.errors.validEmail);
+      if (!email.trim().endsWith('@gmail.com')) throw new Error(copy.register.errors.gmail);
+      if (!phoneNumber.trim()) throw new Error(copy.register.errors.phone);
+      if (!address.trim()) throw new Error(copy.register.errors.address);
+      if (password !== confirmPassword) throw new Error(copy.register.errors.passwordMatch);
+      if (!agreeTerms) throw new Error(copy.register.errors.terms);
+      if (role === 'provider' && !serviceCategory) throw new Error(copy.register.errors.category);
+      if (role === 'provider' && !serviceArea.trim()) throw new Error(copy.register.errors.serviceArea);
 
       const token = await registerWithEmailPassword(email.trim(), password, fullName.trim());
       await registerWithToken(token, role, providerProfile);
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
     } catch (submitError) {
-      notifyError(submitError.message || 'Registration failed');
+      notifyError(submitError.message || copy.register.errors.failed);
     } finally {
       setBusy(false);
     }
@@ -154,7 +166,7 @@ export default function RegisterPage() {
   async function onGoogleSignup() {
     setBusy(true);
     try {
-      if (!agreeTerms) throw new Error('Please accept terms and privacy policy.');
+      if (!agreeTerms) throw new Error(copy.register.errors.terms);
       const token = await loginWithGooglePopup();
       try {
         await registerWithToken(token, role, providerProfile);
@@ -164,7 +176,7 @@ export default function RegisterPage() {
       }
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
     } catch (signupError) {
-      notifyError(signupError.message || 'Registration failed');
+      notifyError(signupError.message || copy.register.errors.failed);
     } finally {
       setBusy(false);
     }
@@ -172,34 +184,38 @@ export default function RegisterPage() {
 
   return (
     <section className="min-h-screen flex flex-col bg-[#F0F2F5] font-['Inter'] p-4">
-
-      {/* Language switcher â€” identical to Login */}
       <div className="fixed top-6 right-6 z-50">
         <div className="flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
-          <button className="px-3 py-1 text-xs font-semibold text-[#1E3A8A] hover:bg-slate-100 rounded-full transition-colors" type="button">EN</button>
-          <div className="w-px h-3 bg-slate-300" />
-          <button className="px-3 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-100 rounded-full transition-colors" type="button">SI</button>
-          <div className="w-px h-3 bg-slate-300" />
-          <button className="px-3 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-100 rounded-full transition-colors" type="button">TA</button>
+          {languageOptions.map((option, index) => (
+            <div key={option.code} className="flex items-center">
+              {index > 0 && <div className="w-px h-3 bg-slate-300" />}
+              <button
+                className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                  language === option.code ? 'text-[#1E3A8A]' : 'text-slate-400 hover:bg-slate-100'
+                }`}
+                type="button"
+                onClick={() => setLanguage(option.code)}
+              >
+                {option.label}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
-      <main className="grow flex items-center justify-center  px-4">
+      <main className="grow flex items-center justify-center px-4">
         <div className="w-full max-w-140 bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-10">
-
-          {/* Header â€” identical structure to Login */}
           <div className="flex flex-col items-center mb-8">
             <div className="flex items-center justify-center w-14 h-14 bg-[#1E3A8A] rounded-2xl mb-4">
               <span className="material-symbols-outlined text-white text-3xl">handshake</span>
             </div>
-            <h1 className="text-3xl font-bold text-[#111827] mb-1">Create Account</h1>
-            <p className="text-sm text-[#6B7280]">Join the LankaServe community today</p>
+            <h1 className="text-3xl font-bold text-[#111827] mb-1">{copy.register.title}</h1>
+            <p className="text-sm text-[#6B7280]">{copy.register.subtitle}</p>
           </div>
 
-          {/* Role selector */}
           <div className="mb-6">
             <p className="text-[10px] font-bold text-[#6B7280] tracking-widest uppercase mb-3">
-              I want to register as:
+              {copy.register.roleLabel}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -215,7 +231,7 @@ export default function RegisterPage() {
                   person
                 </span>
                 <span className={`text-sm font-semibold ${role === 'customer' ? 'text-[#1E3A8A]' : 'text-[#111827]'}`}>
-                  Customer
+                  {copy.register.customer}
                 </span>
               </button>
               <button
@@ -231,47 +247,44 @@ export default function RegisterPage() {
                   tools_installation_kit
                 </span>
                 <span className={`text-sm font-semibold ${role === 'provider' ? 'text-[#1E3A8A]' : 'text-[#111827]'}`}>
-                  Service Provider
+                  {copy.register.provider}
                 </span>
               </button>
             </div>
             {role === 'provider' && (
               <p className="text-xs text-[#6B7280] text-center mt-2.5">
-                Your selected role will determine your dashboard experience.
+                {copy.register.providerHint}
               </p>
             )}
           </div>
 
           <form className="flex flex-col gap-5" onSubmit={onSubmit}>
-
-            {/* Full Name */}
             <div>
-              <label className={labelClass} htmlFor="full-name">Full Name</label>
+              <label className={labelClass} htmlFor="full-name">{copy.common.fullName}</label>
               <input
                 className={inputClass}
                 id="full-name"
-                placeholder="Enter your full name"
+                placeholder={copy.register.fullNamePlaceholder}
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
             </div>
 
-            {/* Email + Phone */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass} htmlFor="email">Email Address</label>
+                <label className={labelClass} htmlFor="email">{copy.common.emailAddress}</label>
                 <input
                   className={inputClass}
                   id="email"
-                  placeholder="example@mail.com"
+                  placeholder={copy.register.emailPlaceholder}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div>
-                <label className={labelClass} htmlFor="phone">Phone Number</label>
+                <label className={labelClass} htmlFor="phone">{copy.common.phoneNumber}</label>
                 <div className="flex">
                   <span className="inline-flex items-center px-3 h-12 rounded-l-[10px] border border-r-0 border-slate-200 bg-slate-50 text-[#6B7280] text-sm font-medium whitespace-nowrap">
                     +94
@@ -279,7 +292,7 @@ export default function RegisterPage() {
                   <input
                     className="w-full h-12 px-3 bg-white border border-slate-200 rounded-r-[10px] text-sm text-[#111827] placeholder:text-slate-400 outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all"
                     id="phone"
-                    placeholder="77 123 4567"
+                    placeholder={copy.register.phonePlaceholder}
                     type="tel"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
@@ -288,15 +301,14 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Password + Confirm */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass} htmlFor="password">Password</label>
+                <label className={labelClass} htmlFor="password">{copy.common.password}</label>
                 <div className="relative">
                   <input
                     className={inputClass + ' pr-11'}
                     id="password"
-                    placeholder="Enter your password"
+                    placeholder={copy.register.passwordPlaceholder}
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -313,12 +325,12 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div>
-                <label className={labelClass} htmlFor="confirm-password">Confirm Password</label>
+                <label className={labelClass} htmlFor="confirm-password">{copy.common.confirmPassword}</label>
                 <div className="relative">
                   <input
                     className={inputClass + ' pr-11'}
                     id="confirm-password"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder={copy.register.confirmPasswordPlaceholder}
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -336,30 +348,28 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Address */}
             <div>
-              <label className={labelClass} htmlFor="address">Address</label>
+              <label className={labelClass} htmlFor="address">{copy.common.address}</label>
               <textarea
                 className="w-full p-4 bg-white border border-slate-200 rounded-[10px] text-sm text-[#111827] placeholder:text-slate-400 outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all resize-none"
                 id="address"
-                placeholder={role === 'provider' ? 'Enter your business or residential address' : 'Enter your full street address'}
+                placeholder={role === 'provider' ? copy.register.providerAddressPlaceholder : copy.register.customerAddressPlaceholder}
                 rows={2}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
             </div>
 
-            {/* Provider-only fields */}
             {role === 'provider' && (
               <div className="flex flex-col gap-5">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 border-t border-slate-100" />
-                  <span className="text-[10px] font-bold text-[#6B7280] tracking-widest uppercase">Provider Details</span>
+                  <span className="text-[10px] font-bold text-[#6B7280] tracking-widest uppercase">{copy.register.providerDetails}</span>
                   <div className="flex-1 border-t border-slate-100" />
                 </div>
 
                 <div>
-                  <label className={labelClass} htmlFor="service-category">Service Category</label>
+                  <label className={labelClass} htmlFor="service-category">{copy.register.serviceCategory}</label>
                   <div className="relative">
                     <select
                       className="w-full h-12 pl-4 pr-10 bg-white border border-slate-200 rounded-[10px] text-sm text-[#111827] outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all appearance-none"
@@ -367,7 +377,7 @@ export default function RegisterPage() {
                       value={serviceCategory}
                       onChange={(e) => setServiceCategory(e.target.value)}
                     >
-                      <option value="" disabled>Select your primary service</option>
+                      <option value="" disabled>{copy.register.serviceCategoryPlaceholder}</option>
                       {SERVICE_CATEGORIES.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
@@ -379,12 +389,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className={labelClass} htmlFor="service-area">Service Area</label>
+                  <label className={labelClass} htmlFor="service-area">{copy.register.serviceArea}</label>
                   <div className="relative">
                     <input
                       className={inputClass}
                       id="service-area"
-                      placeholder="Enter your city or district (e.g., Colombo, Kandy, Galle)"
+                      placeholder={copy.register.serviceAreaPlaceholder}
                       type="text"
                       value={serviceArea}
                       onBlur={() => window.setTimeout(() => setShowLocationSuggestions(false), 120)}
@@ -397,7 +407,7 @@ export default function RegisterPage() {
                     {showLocationSuggestions && (locationSuggestions.length > 0 || locationLoading) ? (
                       <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
                         {locationLoading ? (
-                          <div className="px-4 py-3 text-sm text-slate-500">Searching Sri Lanka locations...</div>
+                          <div className="px-4 py-3 text-sm text-slate-500">{copy.register.searchingLocations}</div>
                         ) : null}
                         {locationSuggestions.map((location) => (
                           <button
@@ -407,7 +417,7 @@ export default function RegisterPage() {
                             type="button"
                           >
                             <p className="text-sm font-semibold text-slate-900 line-clamp-1">{location.label}</p>
-                            <p className="text-xs text-slate-400">District: {location.district}</p>
+                            <p className="text-xs text-slate-400">{copy.register.district}: {location.district}</p>
                           </button>
                         ))}
                       </div>
@@ -415,13 +425,12 @@ export default function RegisterPage() {
                   </div>
                   <p className="mt-1.5 text-xs text-[#1E3A8A] flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">info</span>
-                    Customers will find you near {providerLocation.district}.
+                    {copy.register.customersWillFindYouNear} {providerLocation.district}.
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Terms */}
             <div className="flex items-center gap-3">
               <input
                 className="w-4 h-4 rounded border-slate-300 text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
@@ -431,44 +440,34 @@ export default function RegisterPage() {
                 onChange={(e) => setAgreeTerms(e.target.checked)}
               />
               <label className="text-xs text-[#6B7280] leading-relaxed cursor-pointer" htmlFor="terms">
-                {role === 'provider' ? (
-                  <>By registering as a Provider, I agree to LankaServe&apos;s{' '}
-                    <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">Service Terms</button>
-                    {' '}and{' '}
-                    <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">Privacy Policy</button>.
-                  </>
-                ) : (
-                  <>By registering, I agree to LankaServe&apos;s{' '}
-                    <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">Terms of Service</button>
-                    {' '}and{' '}
-                    <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">Privacy Policy</button>.
-                  </>
-                )}
+                {role === 'provider' ? copy.register.providerTermsPrefix : copy.register.customerTermsPrefix}{' '}
+                <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">
+                  {role === 'provider' ? copy.common.serviceTerms : copy.common.termsOfService}
+                </button>{' '}
+                {copy.register.and}{' '}
+                <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">{copy.common.privacyPolicy}</button>.
               </label>
             </div>
 
-            {/* Submit â€” identical style to Login button */}
             <button
               className="w-full h-12 bg-[#1E3A8A] hover:bg-[#1e40af] active:scale-[0.98] text-white text-sm font-bold tracking-wide rounded-[10px] shadow-[0_4px_14px_rgba(30,58,138,0.25)] disabled:opacity-75 disabled:cursor-not-allowed transition-all"
               type="submit"
               disabled={busy}
             >
-              {busy ? 'Creating...' : role === 'provider' ? 'Register as Service Provider' : 'Register'}
+              {busy ? copy.register.busy : role === 'provider' ? copy.register.submitProvider : copy.register.submit}
             </button>
 
-            {/* Divider â€” identical to Login */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-100" />
               </div>
               <div className="relative flex justify-center">
                 <span className="bg-white px-3 text-[11px] font-medium tracking-wide text-slate-400 uppercase">
-                  {role === 'provider' ? 'Or continue with' : 'Or'}
+                  {role === 'provider' ? copy.register.orContinue : copy.common.or}
                 </span>
               </div>
             </div>
 
-            {/* Google â€” identical to Login */}
             <button
               className="w-full h-12 flex items-center justify-center gap-2.5 bg-white border border-slate-200 rounded-[10px] text-sm font-semibold text-[#374151] hover:bg-slate-50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
               type="button"
@@ -481,27 +480,25 @@ export default function RegisterPage() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
               </svg>
-              Sign up with Google
+              {copy.register.google}
             </button>
 
             {role === 'provider' && (
               <p className="text-xs text-[#6B7280] text-center -mt-2">
-                You will be registered as a Service Provider.
+                {copy.register.providerRegisteredAs}
               </p>
             )}
           </form>
 
-          {/* Footer link â€” identical to Login */}
           <div className="mt-7 text-center">
             <p className="text-sm text-[#6B7280]">
-              Already have an account?{' '}
-              <Link className="font-bold text-[#1E3A8A] hover:underline" to="/login">Login</Link>
+              {copy.register.haveAccount}{' '}
+              <Link className="font-bold text-[#1E3A8A] hover:underline" to="/login">{copy.register.login}</Link>
             </p>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
       <footer style={{ marginTop: '28px', textAlign: 'center' }}>
         <p style={{
           fontSize: '11px',
@@ -515,10 +512,9 @@ export default function RegisterPage() {
           gap: '6px',
         }}>
           <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>shield</span>
-          Secure authentication with role-based access.
+          {copy.common.secureFooter}
         </p>
       </footer>
     </section>
   );
 }
-
