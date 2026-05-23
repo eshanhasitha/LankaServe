@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../config/routes.dart';
+import '../../config/ui_styles.dart';
 import '../../services/job_service.dart';
+import '../../services/provider_service.dart';
+import '../../services/review_service.dart';
 import '../../widgets/customer_bottom_nav.dart';
 import '../../widgets/ui_scale.dart';
 
@@ -16,12 +20,24 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   final JobService _jobService = JobService();
+  final ProviderService _providerService = ProviderService();
+  final ReviewService _reviewService = ReviewService();
   String? _jobId;
   bool _loadedArgs = false;
   bool _loading = true;
   bool _confirming = false;
+  bool _reviewLoading = false;
+  bool _reviewSubmitting = false;
+  int _reviewRating = 0;
   String? _error;
   Map<String, dynamic>? _job;
+  Map<String, dynamic>? _review;
+  Map<String, dynamic>? _providerProfile;
+  String _providerProfileLookupId = '';
+  Timer? _pollTimer;
+  bool _polling = false;
+  final TextEditingController _reviewCommentController =
+      TextEditingController();
 
   @override
   void didChangeDependencies() {
@@ -35,6 +51,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _loadJob();
   }
 
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _reviewCommentController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadJob() async {
     setState(() {
       _loading = true;
@@ -45,9 +68,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
       if (id.isEmpty) {
         final all = await _jobService.fetchJobs(limit: 40);
         final first = all.cast<Map<String, dynamic>?>().firstWhere(
-              (item) => item != null && _isTrackableStatus(item['status']?.toString()),
-              orElse: () => all.isNotEmpty ? all.first : null,
-            );
+          (item) =>
+              item != null && _isTrackableStatus(item['status']?.toString()),
+          orElse: () => all.isNotEmpty ? all.first : null,
+        );
         id = first?['_id']?.toString() ?? '';
       }
       if (id.isEmpty) {
@@ -63,13 +87,153 @@ class _ReviewScreenState extends State<ReviewScreen> {
       setState(() {
         _jobId = id;
         _job = details;
+        if (!_canLoadReviewForStatus(
+          (details['status']?.toString() ?? '').toLowerCase(),
+        )) {
+          _review = null;
+        }
       });
+      await _loadProviderProfileForJob(details, force: true);
+      await _loadReviewForJob(id, withLoader: true);
+      _startPolling();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _refreshJobSilently();
+    });
+  }
+
+  Future<void> _refreshJobSilently() async {
+    if (_polling || !mounted) return;
+    final id = _jobId;
+    if (id == null || id.isEmpty) return;
+    _polling = true;
+    try {
+      final details = await _jobService.getJobById(id);
+      if (!mounted) return;
+      setState(() {
+        _job = details;
+        _error = null;
+        if (!_canLoadReviewForStatus(
+          (details['status']?.toString() ?? '').toLowerCase(),
+        )) {
+          _review = null;
+        }
+      });
+      await _loadProviderProfileForJob(details);
+      if (_review == null &&
+          _canLoadReviewForStatus(
+            (details['status']?.toString() ?? '').toLowerCase(),
+          )) {
+        unawaited(_loadReviewForJob(id, withLoader: false));
+      }
+    } catch (_) {
+      // Silent polling should not interrupt the screen with errors.
+    } finally {
+      _polling = false;
+    }
+  }
+
+  Future<void> _loadProviderProfileForJob(
+    Map<String, dynamic> details, {
+    bool force = false,
+  }) async {
+    final candidateIds = _providerCandidateIds(details);
+    if (candidateIds.isEmpty) {
+      if (mounted && _providerProfile != null) {
+        setState(() {
+          _providerProfile = null;
+          _providerProfileLookupId = '';
+        });
+      }
+      return;
+    }
+
+    final primaryId = candidateIds.first;
+    if (!force &&
+        _providerProfile != null &&
+        _providerProfileLookupId == primaryId) {
+      return;
+    }
+
+    Map<String, dynamic>? profile;
+    String lookup = '';
+    for (final id in candidateIds) {
+      try {
+        final response = await _providerService.getPublicProviderProfile(id);
+        if (response.isNotEmpty) {
+          profile = response;
+          lookup = id;
+          break;
+        }
+      } catch (_) {
+        // Try next candidate ID format.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _providerProfile = profile;
+      _providerProfileLookupId = lookup;
+    });
+  }
+
+  List<String> _providerCandidateIds(Map<String, dynamic> details) {
+    final provider = details['providerId'];
+    final ids = <String>[];
+
+    void add(dynamic value) {
+      final id = value?.toString().trim() ?? '';
+      if (id.isNotEmpty && !ids.contains(id)) {
+        ids.add(id);
+      }
+    }
+
+    if (provider is String) {
+      add(provider);
+    } else if (provider is Map<String, dynamic>) {
+      add(
+        provider['userId'] is Map<String, dynamic>
+            ? provider['userId']['_id']
+            : provider['userId'],
+      );
+      add(provider['_id']);
+      add(provider['id']);
+    }
+    return ids;
+  }
+
+  bool _canLoadReviewForStatus(String status) {
+    return status == 'completed' || status == 'paid';
+  }
+
+  Future<void> _loadReviewForJob(
+    String jobId, {
+    required bool withLoader,
+  }) async {
+    if (!_canLoadReviewForStatus(_jobStatus())) return;
+    if (withLoader) {
+      setState(() => _reviewLoading = true);
+    }
+    try {
+      final review = await _reviewService.fetchMyJobReview(jobId);
+      if (!mounted) return;
+      setState(() => _review = review);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _review = null);
+    } finally {
+      if (mounted && withLoader) {
+        setState(() => _reviewLoading = false);
       }
     }
   }
@@ -108,11 +272,133 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   bool get _canConfirmCompletion {
     final status = _jobStatus();
-    return status == 'ongoing' || status == 'arrived' || status == 'completed';
+    final providerCompletion = _job?['providerCompletion'] == true;
+    final customerCompletion = _job?['customerCompletion'] == true;
+    final statusAllowsConfirmation =
+        status == 'ongoing' || status == 'arrived' || status == 'completed';
+    return providerCompletion &&
+        !customerCompletion &&
+        statusAllowsConfirmation;
+  }
+
+  bool get _providerMarkedComplete => _job?['providerCompletion'] == true;
+
+  bool get _customerMarkedComplete => _job?['customerCompletion'] == true;
+
+  bool get _needsArrivalVerification {
+    final status = _jobStatus();
+    final arrivedAt = _job?['arrivedAt']?.toString().trim() ?? '';
+    return status == 'accepted' && arrivedAt.isEmpty;
+  }
+
+  bool get _hasAssignedProvider {
+    final provider = _job?['providerId'];
+    if (provider is String) return provider.trim().isNotEmpty;
+    if (provider is Map<String, dynamic>) {
+      return provider['_id']?.toString().trim().isNotEmpty == true ||
+          provider['id']?.toString().trim().isNotEmpty == true ||
+          provider['name']?.toString().trim().isNotEmpty == true ||
+          provider['userId']?.toString().trim().isNotEmpty == true;
+    }
+    return false;
+  }
+
+  bool get _canScanArrivalQr =>
+      _hasAssignedProvider && _needsArrivalVerification;
+
+  bool get _isCompletedPhase {
+    final status = _jobStatus();
+    return status == 'completed' || status == 'paid';
+  }
+
+  bool get _canSubmitReview {
+    return _isCompletedPhase && _customerMarkedComplete && _review == null;
+  }
+
+  Future<void> _submitReview() async {
+    final id = _jobId;
+    if (id == null || id.isEmpty) return;
+    if (_reviewRating <= 0) {
+      _show('Please select a rating before submitting.');
+      return;
+    }
+
+    setState(() => _reviewSubmitting = true);
+    try {
+      final created = await _reviewService.createReview(
+        jobId: id,
+        rating: _reviewRating,
+        comment: _reviewCommentController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _review = created;
+      });
+      _show('Review submitted.');
+    } catch (e) {
+      if (!mounted) return;
+      _show('Failed to submit review: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _reviewSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _openProviderChat() async {
+    final provider = _job?['providerId'];
+    String providerId = '';
+    String providerName = 'Provider';
+    String providerAvatar = '';
+
+    if (provider is Map<String, dynamic>) {
+      providerId =
+          provider['_id']?.toString() ??
+          provider['id']?.toString() ??
+          provider['userId']?['_id']?.toString() ??
+          provider['userId']?.toString() ??
+          '';
+      final directName = provider['name']?.toString().trim() ?? '';
+      final nestedName = provider['userId'] is Map<String, dynamic>
+          ? (provider['userId']['name']?.toString().trim() ?? '')
+          : '';
+      providerName = directName.isNotEmpty
+          ? directName
+          : nestedName.isNotEmpty
+          ? nestedName
+          : 'Assigned Provider';
+      providerAvatar =
+          provider['profileImage']?.toString() ??
+          (provider['userId'] is Map<String, dynamic>
+              ? provider['userId']['profileImage']?.toString() ?? ''
+              : '');
+    } else if (provider is String) {
+      providerId = provider;
+    }
+
+    if (providerId.trim().isEmpty) {
+      _show('Provider is not assigned yet.');
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.pushNamed(
+      context,
+      AppRoutes.chatConversation,
+      arguments: {
+        'counterpartId': providerId,
+        'counterpartName': providerName,
+        'counterpartAvatar': providerAvatar,
+        'isProvider': true,
+        if ((_jobId ?? '').isNotEmpty) 'jobId': _jobId,
+      },
+    );
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -153,37 +439,78 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     : RefreshIndicator(
                         onRefresh: _loadJob,
                         child: ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    _JobInfoCard(job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 12),
-                    const _SectionLabel('ASSIGNED PROVIDER'),
-                    const SizedBox(height: 8),
-                    _ProviderCard(job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 12),
-                    const _SectionLabel('JOB PROGRESS'),
-                    const SizedBox(height: 8),
-                    _ProgressTimeline(status: _jobStatus(), job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 14),
-                    _QrCard(
-                      onTap: _jobId == null
-                          ? null
-                          : () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.customerQrScan,
-                                arguments: _jobId,
+                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            _JobInfoCard(
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionLabel('ASSIGNED PROVIDER'),
+                            const SizedBox(height: 8),
+                            _ProviderCard(
+                              job: _job ?? const <String, dynamic>{},
+                              providerProfile: _providerProfile,
+                              onMessage: _openProviderChat,
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionLabel('JOB PROGRESS'),
+                            const SizedBox(height: 8),
+                            _ProgressTimeline(
+                              status: _jobStatus(),
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 14),
+                            _CompletionStatusCard(
+                              providerConfirmed: _providerMarkedComplete,
+                              customerConfirmed: _customerMarkedComplete,
+                              canConfirm: _canConfirmCompletion,
+                            ),
+                            const SizedBox(height: 14),
+                            _LocationCard(
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 14),
+                            _QrCard(
+                              enabled: _canScanArrivalQr && _jobId != null,
+                              helperText: _canScanArrivalQr
+                                  ? 'Ensure the provider is at your location\nbefore scanning their QR code.'
+                                  : _hasAssignedProvider
+                                  ? 'Arrival already verified or not ready for scanning.'
+                                  : 'QR scan will activate after a provider is assigned.',
+                              onTap: _canScanArrivalQr && _jobId != null
+                                  ? () => Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.customerQrScan,
+                                      arguments: _jobId,
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+                            _BottomAction(
+                              loading: _confirming,
+                              enabled: _canConfirmCompletion,
+                              onTap: _canConfirmCompletion
+                                  ? _confirmCompletion
+                                  : null,
+                            ),
+                            if (_isCompletedPhase) ...[
+                              const SizedBox(height: 14),
+                              _ReviewSection(
+                                review: _review,
+                                loading: _reviewLoading,
+                                submitting: _reviewSubmitting,
+                                canSubmit: _canSubmitReview,
+                                selectedRating: _reviewRating,
+                                onRatingChanged: (value) =>
+                                    setState(() => _reviewRating = value),
+                                commentController: _reviewCommentController,
+                                onSubmit: _submitReview,
                               ),
-                    ),
-                    const SizedBox(height: 14),
-                    _BottomAction(
-                      loading: _confirming,
-                      enabled: _canConfirmCompletion,
-                      onTap: _canConfirmCompletion ? _confirmCompletion : null,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
+                            ],
+                            const SizedBox(height: 12),
+                          ],
+                        ),
                       ),
               ),
             ],
@@ -262,9 +589,12 @@ class _JobInfoCard extends StatelessWidget {
     final category = (job['category']?.toString() ?? 'General').toUpperCase();
     final amount = job['price'] is num
         ? (job['price'] as num).toStringAsFixed(0)
-        : (num.tryParse(job['price']?.toString() ?? '0') ?? 0).toStringAsFixed(0);
+        : (num.tryParse(job['price']?.toString() ?? '0') ?? 0).toStringAsFixed(
+            0,
+          );
     final title = job['title']?.toString() ?? 'Job';
-    final description = job['description']?.toString() ?? 'No description available.';
+    final description =
+        job['description']?.toString() ?? 'No description available.';
 
     return Container(
       padding: const EdgeInsets.all(17),
@@ -369,14 +699,51 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.job});
+  const _ProviderCard({
+    required this.job,
+    required this.providerProfile,
+    required this.onMessage,
+  });
 
   final Map<String, dynamic> job;
+  final Map<String, dynamic>? providerProfile;
+  final VoidCallback onMessage;
 
   @override
   Widget build(BuildContext context) {
-    final provider = job['providerId'] as Map<String, dynamic>?;
-    final name = provider?['name']?.toString() ?? 'Provider not assigned';
+    final provider = providerProfile ?? job['providerId'];
+    Map<String, dynamic>? providerMap;
+    if (provider is Map<String, dynamic>) {
+      providerMap = provider;
+    }
+    final user = providerMap?['userId'];
+    final userMap = user is Map<String, dynamic> ? user : null;
+    final name = providerMap?['name']?.toString().trim().isNotEmpty == true
+        ? providerMap!['name'].toString().trim()
+        : userMap?['name']?.toString().trim().isNotEmpty == true
+        ? userMap!['name'].toString().trim()
+        : provider is String && provider.trim().isNotEmpty
+        ? 'Assigned Provider'
+        : 'Provider not assigned';
+    final avatar =
+        providerMap?['profileImage']?.toString() ??
+        userMap?['profileImage']?.toString() ??
+        '';
+    final categories = providerMap?['categories'];
+    final categoryLabel = categories is List && categories.isNotEmpty
+        ? categories.first.toString()
+        : (job['category']?.toString() ?? 'General Service');
+    final stats = providerMap?['stats'] as Map<String, dynamic>?;
+    final ratingNum = stats?['averageRating'];
+    final jobsNum = stats?['completedJobs'];
+    final rating = ratingNum is num
+        ? ratingNum.toStringAsFixed(1)
+        : (num.tryParse(ratingNum?.toString() ?? '')?.toStringAsFixed(1) ??
+              '-');
+    final jobs = jobsNum is num
+        ? jobsNum.toStringAsFixed(0)
+        : (num.tryParse(jobsNum?.toString() ?? '')?.toStringAsFixed(0) ?? '0');
+    final assigned = name != 'Provider not assigned';
 
     return Container(
       padding: const EdgeInsets.all(11),
@@ -390,13 +757,24 @@ class _ProviderCard extends StatelessWidget {
           CircleAvatar(
             radius: 26,
             backgroundColor: const Color(0xFFE6EBF4),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(26),
-              child: Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuBCUIoMRWFWJ53a6WQVefseHo0hTLsKcjD6lgdkUVRV-ztlNqj0gHWWpmoZ_hk22l4HiX7V7ZEI67jspxklRUWtPRPzJphvthC5OQsYX1k0_EJ0P44KqdX5HSonMRNu2XzCQrYv3n8xFbEdq_6J5ziR7qTuAwAajY6aXrMRX7T-viLh84LUuflm6BxMPhUyGXhBjdPSI18aBNy0v3mcUFPLRsBa_iMObCRkc6FTGSZRC4XNiFym9DizUWBE06zhwyq8lo51z9tIBcAp',
-                fit: BoxFit.cover,
-              ),
-            ),
+            child: avatar.isEmpty
+                ? const Icon(
+                    Icons.person_rounded,
+                    color: Color(0xFF8EA0B8),
+                    size: 27,
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(26),
+                    child: Image.network(
+                      avatar,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFF8EA0B8),
+                        size: 27,
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -412,24 +790,39 @@ class _ProviderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Row(
+                Text(
+                  categoryLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8092AD),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
                   children: [
-                    Icon(Icons.star_rounded, color: Color(0xFFF97316), size: 20),
-                    SizedBox(width: 4),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFF97316),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      '4.9',
-                      style: TextStyle(
+                      rating,
+                      style: const TextStyle(
                         color: Color(0xFFF97316),
-                        fontSize: 15,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(
-                      '(reviews)',
-                      style: TextStyle(
+                      '$jobs jobs',
+                      style: const TextStyle(
                         color: Color(0xFF8EA0B8),
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -438,18 +831,211 @@ class _ProviderCard extends StatelessWidget {
               ],
             ),
           ),
+          InkWell(
+            onTap: assigned ? onMessage : null,
+            borderRadius: BorderRadius.circular(17),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBFCFE),
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: const Color(0xFFE7ECF4)),
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: assigned
+                    ? const Color(0xFF5A6B86)
+                    : const Color(0xFFB9C6D9),
+                size: 25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompletionStatusCard extends StatelessWidget {
+  const _CompletionStatusCard({
+    required this.providerConfirmed,
+    required this.customerConfirmed,
+    required this.canConfirm,
+  });
+
+  final bool providerConfirmed;
+  final bool customerConfirmed;
+  final bool canConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatusTile(
+              title: 'Provider Status',
+              subtitle: providerConfirmed
+                  ? 'Provider marked as completed.'
+                  : 'Awaiting provider completion.',
+              confirmed: providerConfirmed,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatusTile(
+              title: 'Your Status',
+              subtitle: customerConfirmed
+                  ? 'You confirmed completion.'
+                  : canConfirm
+                  ? 'Ready to confirm.'
+                  : 'Waiting for provider.',
+              confirmed: customerConfirmed,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusTile extends StatelessWidget {
+  const _StatusTile({
+    required this.title,
+    required this.subtitle,
+    required this.confirmed,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool confirmed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 11, 10, 11),
+      decoration: BoxDecoration(
+        color: confirmed ? const Color(0xFFF1FAF4) : const Color(0xFFF8FAFD),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: confirmed ? const Color(0xFFCDEED8) : const Color(0xFFE4EAF2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                confirmed ? Icons.check_circle_rounded : Icons.hourglass_empty,
+                color: confirmed
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFF97316),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF1B2940),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF6B7C95),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({required this.job});
+
+  final Map<String, dynamic> job;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = job['location'];
+    final coordinates = location is Map<String, dynamic>
+        ? location['coordinates']
+        : null;
+    String text = 'Location not available';
+    if (coordinates is List && coordinates.length >= 2) {
+      final lng = (coordinates[0] as num?)?.toDouble();
+      final lat = (coordinates[1] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        text = '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: Row(
+        children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFFBFCFE),
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: const Color(0xFFE7ECF4)),
+              color: const Color(0xFFF0F4FB),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: Color(0xFF5A6B86),
-              size: 25,
+              Icons.location_on_rounded,
+              color: Color(0xFF2F62D5),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Location',
+                  style: TextStyle(
+                    color: Color(0xFF1B2940),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Color(0xFF66758E),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -471,12 +1057,14 @@ class _ProgressTimeline extends StatelessWidget {
     final arrived = DateTime.tryParse(job['arrivedAt']?.toString() ?? '');
     final completed = DateTime.tryParse(job['completedAt']?.toString() ?? '');
 
-    final assignedDone = status == 'accepted' ||
+    final assignedDone =
+        status == 'accepted' ||
         status == 'arrived' ||
         status == 'ongoing' ||
         status == 'completed' ||
         status == 'paid';
-    final inProgressDone = status == 'ongoing' || status == 'completed' || status == 'paid';
+    final inProgressDone =
+        status == 'ongoing' || status == 'completed' || status == 'paid';
     final completedDone = status == 'completed' || status == 'paid';
 
     return Column(
@@ -486,14 +1074,21 @@ class _ProgressTimeline extends StatelessWidget {
           subtitle: _timeLabel(created, fallback: 'Created'),
           state: _TimelineState.done,
           showLine: true,
-          lineColor: assignedDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: assignedDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Provider Assigned',
-          subtitle: _timeLabel(accepted, fallback: assignedDone ? 'Assigned' : 'Waiting for provider'),
+          subtitle: _timeLabel(
+            accepted,
+            fallback: assignedDone ? 'Assigned' : 'Waiting for provider',
+          ),
           state: assignedDone ? _TimelineState.done : _TimelineState.pending,
           showLine: true,
-          lineColor: inProgressDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: inProgressDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Job in Progress',
@@ -503,9 +1098,13 @@ class _ProgressTimeline extends StatelessWidget {
                 ? 'Provider is on site'
                 : 'Waiting for provider arrival',
           ),
-          state: inProgressDone ? _TimelineState.current : _TimelineState.pending,
+          state: inProgressDone
+              ? _TimelineState.current
+              : _TimelineState.pending,
           showLine: true,
-          lineColor: completedDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: completedDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Job Completed',
@@ -658,9 +1257,15 @@ class _TimelineStep extends StatelessWidget {
 }
 
 class _QrCard extends StatelessWidget {
-  const _QrCard({required this.onTap});
+  const _QrCard({
+    required this.onTap,
+    required this.enabled,
+    required this.helperText,
+  });
 
   final VoidCallback? onTap;
+  final bool enabled;
+  final String helperText;
 
   @override
   Widget build(BuildContext context) {
@@ -721,10 +1326,10 @@ class _QrCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Ensure the provider is at your location\nbefore scanning their QR code.',
+              Text(
+                helperText,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF66758E),
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
@@ -738,7 +1343,9 @@ class _QrCard extends StatelessWidget {
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF273D98),
+                    color: enabled
+                        ? const Color(0xFF273D98)
+                        : const Color(0xFF93A1BD),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Row(
@@ -770,6 +1377,190 @@ class _QrCard extends StatelessWidget {
   }
 }
 
+class _ReviewSection extends StatelessWidget {
+  const _ReviewSection({
+    required this.review,
+    required this.loading,
+    required this.submitting,
+    required this.canSubmit,
+    required this.selectedRating,
+    required this.onRatingChanged,
+    required this.commentController,
+    required this.onSubmit,
+  });
+
+  final Map<String, dynamic>? review;
+  final bool loading;
+  final bool submitting;
+  final bool canSubmit;
+  final int selectedRating;
+  final ValueChanged<int> onRatingChanged;
+  final TextEditingController commentController;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rate & Review',
+            style: TextStyle(
+              color: Color(0xFF141C34),
+              fontSize: 16.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(color: Color(0xFF273D98)),
+              ),
+            )
+          else if (review != null) ...[
+            Row(
+              children: [
+                ...List.generate(5, (index) {
+                  final value = index + 1;
+                  final filled =
+                      value <=
+                      ((review?['rating'] as num?)?.toInt() ??
+                          int.tryParse(review?['rating']?.toString() ?? '0') ??
+                          0);
+                  return Icon(
+                    filled ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: filled
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFFBFC9DA),
+                    size: 20,
+                  );
+                }),
+                const SizedBox(width: 8),
+                Text(
+                  (review?['rating']?.toString() ?? '').isEmpty
+                      ? '-'
+                      : review!['rating'].toString(),
+                  style: const TextStyle(
+                    color: Color(0xFF334155),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFD),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE4EAF2)),
+              ),
+              child: Text(
+                (review?['comment']?.toString().trim().isNotEmpty ?? false)
+                    ? review!['comment'].toString().trim()
+                    : 'You submitted a rating without a written review.',
+                style: const TextStyle(
+                  color: Color(0xFF60718B),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ] else if (canSubmit) ...[
+            _StarInput(selected: selectedRating, onChanged: onRatingChanged),
+            const SizedBox(height: 8),
+            TextField(
+              controller: commentController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Write a short review (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFD2DBE8)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFD2DBE8)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: submitting ? null : onSubmit,
+                style: AppUiStyles.primaryButton(radius: AppUiStyles.radiusMd),
+                child: submitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Text(
+                        'Submit Review',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ),
+          ] else
+            const Text(
+              'Review will be available after completion is confirmed.',
+              style: TextStyle(
+                color: Color(0xFF6D7E97),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StarInput extends StatelessWidget {
+  const _StarInput({required this.selected, required this.onChanged});
+
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (index) {
+        final value = index + 1;
+        final filled = value <= selected;
+        return IconButton(
+          onPressed: () => onChanged(value),
+          icon: Icon(
+            filled ? Icons.star_rounded : Icons.star_border_rounded,
+            color: filled ? const Color(0xFFF59E0B) : const Color(0xFFBFC9DA),
+            size: 30,
+          ),
+        );
+      }),
+    );
+  }
+}
+
 class _BottomAction extends StatelessWidget {
   const _BottomAction({
     required this.loading,
@@ -787,16 +1578,13 @@ class _BottomAction extends StatelessWidget {
       height: 56,
       child: ElevatedButton(
         onPressed: enabled && !loading ? onTap : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF273D98),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF8B97B5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          elevation: 0,
-          shadowColor: const Color(0x4A273D98),
-        ),
+        style:
+            AppUiStyles.primaryButton(
+              height: 56,
+              radius: BorderRadius.circular(18),
+            ).copyWith(
+              shadowColor: WidgetStateProperty.all(const Color(0x4A273D98)),
+            ),
         child: loading
             ? const SizedBox(
                 width: 24,
