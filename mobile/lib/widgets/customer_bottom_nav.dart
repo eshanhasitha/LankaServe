@@ -1,12 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../config/routes.dart';
+import '../services/message_badge_service.dart';
 import 'ui_scale.dart';
 
-class CustomerBottomNav extends StatelessWidget {
+class CustomerBottomNav extends StatefulWidget {
   const CustomerBottomNav({super.key, required this.activeIndex});
 
   final int activeIndex;
+
+  @override
+  State<CustomerBottomNav> createState() => _CustomerBottomNavState();
+}
+
+class _CustomerBottomNavState extends State<CustomerBottomNav> {
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    MessageBadgeService.instance.refreshUnread();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 12),
+      (_) => MessageBadgeService.instance.refreshUnread(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,14 +86,19 @@ class CustomerBottomNav extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: _navItem(
-                      context,
-                      4,
-                      Icons.chat_bubble_outline_rounded,
-                      'Messages',
-                      AppRoutes.chat,
-                      dot: true,
-                      routeArgs: const {'fromProvider': false},
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: MessageBadgeService.instance.hasUnread,
+                      builder: (context, hasUnread, _) {
+                        return _navItem(
+                          context,
+                          4,
+                          Icons.chat_bubble_outline_rounded,
+                          'Messages',
+                          AppRoutes.chat,
+                          dot: hasUnread && widget.activeIndex != 4,
+                          routeArgs: const {'fromProvider': false},
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -81,7 +112,7 @@ class CustomerBottomNav extends StatelessWidget {
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  if (activeIndex != 2) {
+                  if (widget.activeIndex != 2) {
                     Navigator.pushReplacementNamed(
                       context,
                       AppRoutes.customerQrScan,
@@ -117,11 +148,11 @@ class CustomerBottomNav extends StatelessWidget {
                 child: Text(
                   'QR Scan',
                   style: TextStyle(
-                    color: activeIndex == 2
+                    color: widget.activeIndex == 2
                         ? const Color(0xFF3E5DD0)
                         : const Color(0xFF93A1B7),
                     fontSize: (12 * scale).clamp(10, 12).toDouble(),
-                    fontWeight: activeIndex == 2
+                    fontWeight: widget.activeIndex == 2
                         ? FontWeight.w800
                         : FontWeight.w700,
                   ),
@@ -143,7 +174,7 @@ class CustomerBottomNav extends StatelessWidget {
     bool dot = false,
     Object? routeArgs,
   }) {
-    final active = index == activeIndex;
+    final active = index == widget.activeIndex;
     final scale = UiScale.factor(context, min: 0.80, max: 0.95);
     return InkWell(
       onTap: () {

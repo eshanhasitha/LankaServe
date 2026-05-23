@@ -5,11 +5,20 @@ class ReviewService {
 
   final ApiService _api;
 
-  Future<List<Map<String, dynamic>>> fetchProviderReviews(String providerId) async {
+  Future<List<Map<String, dynamic>>> fetchProviderReviews(
+    String providerId,
+  ) async {
     final res = await _api.get('/reviews/provider/$providerId');
     final data = res['data'];
     if (data is List) return data.whereType<Map<String, dynamic>>().toList();
     return <Map<String, dynamic>>[];
+  }
+
+  Future<Map<String, dynamic>?> fetchMyJobReview(String jobId) async {
+    final res = await _api.get('/reviews/job/$jobId/mine');
+    final data = res['data'];
+    if (data is Map<String, dynamic>) return data;
+    return null;
   }
 
   Future<Map<String, dynamic>> createReview({
@@ -17,11 +26,10 @@ class ReviewService {
     required int rating,
     String comment = '',
   }) async {
-    final res = await _api.post('/reviews', body: {
-      'jobId': jobId,
-      'rating': rating,
-      'comment': comment,
-    });
+    final res = await _api.post(
+      '/reviews',
+      body: {'jobId': jobId, 'rating': rating, 'comment': comment},
+    );
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
   }
 }

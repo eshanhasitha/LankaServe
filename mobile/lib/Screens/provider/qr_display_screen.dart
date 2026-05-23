@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../config/routes.dart';
 import '../../services/job_service.dart';
@@ -56,7 +57,8 @@ class _QrDisplayScreenState extends State<QrDisplayScreen> {
           limit: 40,
         );
         final first = all.cast<Map<String, dynamic>?>().firstWhere(
-          (item) => item != null && _isTrackableStatus(item['status']?.toString()),
+          (item) =>
+              item != null && _isTrackableStatus(item['status']?.toString()),
           orElse: () => all.isNotEmpty ? all.first : null,
         );
         id = first?['_id']?.toString() ?? '';
@@ -179,7 +181,9 @@ class _QrDisplayScreenState extends State<QrDisplayScreen> {
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -220,29 +224,44 @@ class _QrDisplayScreenState extends State<QrDisplayScreen> {
                     : RefreshIndicator(
                         onRefresh: _loadJob,
                         child: ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    _JobInfoCard(job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 12),
-                    const _SectionLabel('CUSTOMER'),
-                    const SizedBox(height: 8),
-                    _CustomerCard(job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 12),
-                    const _SectionLabel('JOB PROGRESS'),
-                    const SizedBox(height: 8),
-                    _ProgressTimeline(status: _jobStatus(), job: _job ?? const <String, dynamic>{}),
-                    const SizedBox(height: 12),
-                    _QrCard(
-                      refreshing: _refreshing,
-                      hasToken: (_qrData?['token']?.toString().trim().isNotEmpty ?? false),
-                      providerName: _providerName(),
-                      providerSubtitle: _providerSubtitle(),
-                      onRefresh: _canRefreshQr && !_refreshing ? _refreshQr : null,
-                    ),
-                    const SizedBox(height: 88),
-                  ],
-                ),
+                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            _JobInfoCard(
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionLabel('CUSTOMER'),
+                            const SizedBox(height: 8),
+                            _CustomerCard(
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 12),
+                            const _SectionLabel('JOB PROGRESS'),
+                            const SizedBox(height: 8),
+                            _ProgressTimeline(
+                              status: _jobStatus(),
+                              job: _job ?? const <String, dynamic>{},
+                            ),
+                            const SizedBox(height: 12),
+                            _QrCard(
+                              refreshing: _refreshing,
+                              hasToken:
+                                  (_qrData?['token']
+                                      ?.toString()
+                                      .trim()
+                                      .isNotEmpty ??
+                                  false),
+                              token: _qrData?['token']?.toString().trim() ?? '',
+                              providerName: _providerName(),
+                              providerSubtitle: _providerSubtitle(),
+                              onRefresh: _canRefreshQr && !_refreshing
+                                  ? _refreshQr
+                                  : null,
+                            ),
+                            const SizedBox(height: 88),
+                          ],
+                        ),
                       ),
               ),
             ],
@@ -341,9 +360,12 @@ class _JobInfoCard extends StatelessWidget {
     final category = (job['category']?.toString() ?? 'General').toUpperCase();
     final amount = job['price'] is num
         ? (job['price'] as num).toStringAsFixed(0)
-        : (num.tryParse(job['price']?.toString() ?? '0') ?? 0).toStringAsFixed(0);
+        : (num.tryParse(job['price']?.toString() ?? '0') ?? 0).toStringAsFixed(
+            0,
+          );
     final title = job['title']?.toString() ?? 'Job';
-    final description = job['description']?.toString() ?? 'No description available.';
+    final description =
+        job['description']?.toString() ?? 'No description available.';
 
     return Container(
       padding: const EdgeInsets.all(17),
@@ -458,7 +480,9 @@ class _CustomerCard extends StatelessWidget {
     final name = customer?['name']?.toString() ?? 'Customer';
     final district = customer?['district']?.toString().trim() ?? '';
     final city = customer?['city']?.toString().trim() ?? '';
-    final location = district.isNotEmpty ? district : (city.isNotEmpty ? city : 'Location');
+    final location = district.isNotEmpty
+        ? district
+        : (city.isNotEmpty ? city : 'Location');
     final avatarUrl = customer?['profileImage']?.toString() ?? '';
 
     return Container(
@@ -560,12 +584,14 @@ class _ProgressTimeline extends StatelessWidget {
     final arrived = DateTime.tryParse(job['arrivedAt']?.toString() ?? '');
     final completed = DateTime.tryParse(job['completedAt']?.toString() ?? '');
 
-    final assignedDone = status == 'accepted' ||
+    final assignedDone =
+        status == 'accepted' ||
         status == 'arrived' ||
         status == 'ongoing' ||
         status == 'completed' ||
         status == 'paid';
-    final inProgressDone = status == 'ongoing' || status == 'completed' || status == 'paid';
+    final inProgressDone =
+        status == 'ongoing' || status == 'completed' || status == 'paid';
     final completedDone = status == 'completed' || status == 'paid';
 
     return Column(
@@ -575,14 +601,21 @@ class _ProgressTimeline extends StatelessWidget {
           subtitle: _timeLabel(created, fallback: 'Created'),
           state: _TimelineState.done,
           showLine: true,
-          lineColor: assignedDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: assignedDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Provider Assigned',
-          subtitle: _timeLabel(accepted, fallback: assignedDone ? 'Assigned' : 'Waiting for provider'),
+          subtitle: _timeLabel(
+            accepted,
+            fallback: assignedDone ? 'Assigned' : 'Waiting for provider',
+          ),
           state: assignedDone ? _TimelineState.done : _TimelineState.pending,
           showLine: true,
-          lineColor: inProgressDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: inProgressDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Job in Progress',
@@ -592,9 +625,13 @@ class _ProgressTimeline extends StatelessWidget {
                 ? 'Provider is on site'
                 : 'Waiting for provider arrival',
           ),
-          state: inProgressDone ? _TimelineState.current : _TimelineState.pending,
+          state: inProgressDone
+              ? _TimelineState.current
+              : _TimelineState.pending,
           showLine: true,
-          lineColor: completedDone ? const Color(0xFF273D98) : const Color(0xFFD5DFEC),
+          lineColor: completedDone
+              ? const Color(0xFF273D98)
+              : const Color(0xFFD5DFEC),
         ),
         _TimelineStep(
           title: 'Job Completed',
@@ -749,6 +786,7 @@ class _TimelineStep extends StatelessWidget {
 class _QrCard extends StatelessWidget {
   const _QrCard({
     required this.hasToken,
+    required this.token,
     required this.providerName,
     required this.providerSubtitle,
     required this.refreshing,
@@ -756,6 +794,7 @@ class _QrCard extends StatelessWidget {
   });
 
   final bool hasToken;
+  final String token;
   final String providerName;
   final String providerSubtitle;
   final bool refreshing;
@@ -798,17 +837,46 @@ class _QrCard extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.qr_code_2_rounded,
-                    size: 102,
-                    color: hasToken
-                        ? const Color(0xFFC1CCDD)
-                        : const Color(0xFFD7DFEC),
-                  ),
+                  if (hasToken)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F3)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x140E1B3D),
+                            blurRadius: 16,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: QrImageView(
+                        data: token,
+                        size: 196,
+                        version: QrVersions.auto,
+                        backgroundColor: Colors.white,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF273D98),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF273D98),
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.qr_code_2_rounded,
+                      size: 102,
+                      color: Color(0xFFD7DFEC),
+                    ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'SCAN FOR VERIFICATION',
-                    style: TextStyle(
+                  Text(
+                    hasToken ? 'SCAN FOR VERIFICATION' : 'QR IS LOADING',
+                    style: const TextStyle(
                       color: Color(0xFF8EA0B8),
                       fontSize: 13.5,
                       letterSpacing: 2.1,
@@ -855,7 +923,10 @@ class _QrCard extends StatelessWidget {
                   : const Icon(Icons.refresh_rounded, size: 23),
               label: Text(
                 refreshing ? 'Refreshing...' : 'Refresh Code',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF273D98),
