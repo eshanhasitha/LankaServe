@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "759974294598",
+    "project_id": "lankaserve-e327a",
+    "storage_bucket": "lankaserve-e327a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759974294598:android:0812c0751c57106c164647",
+        "android_client_info": {
+          "package_name": "com.lankaserve.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "759974294598-3lgs2evreva9s6po4pf9vvnd0o0e657r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lankaserve.mobile",
+            "certificate_hash": "7620fcb2ba80d1b1aa8822443e93c45a8a09dd79"
+          }
+        },
+        {
+          "client_id": "759974294598-gdoerhkcm4m36h5d5q02o9bob47j0vhs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAs9brB2hxjzlnvGloWijX2JogaFqG0Vio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "759974294598-gdoerhkcm4m36h5d5q02o9bob47j0vhs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
