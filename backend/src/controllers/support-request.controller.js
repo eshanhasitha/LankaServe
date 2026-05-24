@@ -1,5 +1,6 @@
 import SupportRequest from '../models/SupportRequest.model.js';
 import { sendResponse } from '../utils/response.js';
+import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 
 const statusLabels = {
     open: 'Open',
@@ -24,12 +25,16 @@ function serializeTicket(ticket) {
         id: ticket._id,
         ticketNumber: ticket.ticketNumber,
         role: ticket.role,
+        userId: ticket.userId?._id || ticket.userId || null,
+        userName: ticket.userId?.name || '',
+        userEmail: ticket.userId?.email || '',
         category: ticket.category,
         subject: ticket.subject,
         message: ticket.message,
         status: ticket.status,
         statusLabel: statusLabels[ticket.status] || ticket.status,
         priority: ticket.priority,
+        adminNotes: ticket.adminNotes || '',
         attachments: ticket.attachments || [],
         createdAt: ticket.createdAt,
         updatedAt: ticket.updatedAt,
@@ -90,6 +95,118 @@ export const getMySupportRequest = async (req, res, next) => {
 
         return sendResponse(res, {
             message: 'Support request',
+            data: serializeTicket(ticket),
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const listSupportRequestsForAdmin = async (req, res, next) => {
+    try {
+        const { page, limit, skip } = getPagination(req.query);
+        const filter = {};
+
+        if (req.query?.status) {
+            filter.status = req.query.status;
+        }
+        if (req.query?.priority) {
+            filter.priority = req.query.priority;
+        }
+        if (req.query?.role) {
+            filter.role = req.query.role;
+        }
+        if (req.query?.category) {
+            filter.category = req.query.category;
+        }
+        if (req.query?.search) {
+            const pattern = String(req.query.search).trim();
+            if (pattern) {
+                filter.$or = [
+                    { ticketNumber: { $regex: pattern, $options: 'i' } },
+                    { subject: { $regex: pattern, $options: 'i' } },
+                    { message: { $regex: pattern, $options: 'i' } },
+                ];
+            }
+        }
+
+        const [items, total] = await Promise.all([
+            SupportRequest.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate('userId', 'name email role'),
+            SupportRequest.countDocuments(filter),
+        ]);
+
+        return sendResponse(res, {
+            message: 'Support requests',
+            data: items.map(serializeTicket),
+            pagination: buildPaginationMeta({ page, limit, total }),
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getSupportRequestForAdmin = async (req, res, next) => {
+    try {
+        const ticket = await SupportRequest.findById(req.params.id).populate('userId', 'name email role');
+        if (!ticket) {
+            return sendResponse(res, {
+                statusCode: 404,
+                success: false,
+                message: 'Support request not found',
+                errorCode: 'SUPPORT_REQUEST_NOT_FOUND',
+            });
+        }
+
+        return sendResponse(res, {
+            message: 'Support request',
+            data: serializeTicket(ticket),
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateSupportRequestForAdmin = async (req, res, next) => {
+    try {
+        const updates = {};
+        const nextStatus = req.body.status;
+
+        if (nextStatus) {
+            updates.status = nextStatus;
+            if (['resolved', 'closed'].includes(nextStatus)) {
+                updates.closedAt = new Date();
+            } else {
+                updates.closedAt = null;
+            }
+        }
+        if (req.body.priority) {
+            updates.priority = req.body.priority;
+        }
+        if (typeof req.body.adminNotes === 'string') {
+            updates.adminNotes = req.body.adminNotes.trim();
+        }
+
+        const ticket = await SupportRequest.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { returnDocument: 'after' },
+        ).populate('userId', 'name email role');
+
+        if (!ticket) {
+            return sendResponse(res, {
+                statusCode: 404,
+                success: false,
+                message: 'Support request not found',
+                errorCode: 'SUPPORT_REQUEST_NOT_FOUND',
+            });
+        }
+
+        return sendResponse(res, {
+            message: 'Support request updated',
             data: serializeTicket(ticket),
         });
     } catch (error) {
