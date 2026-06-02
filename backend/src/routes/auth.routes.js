@@ -1,48 +1,33 @@
-import express from "express";
-import admin from "../config/firebase.js";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import express from 'express';
+import Joi from 'joi';
+import { register, login, refresh, logout } from '../controllers/auth.controller.js';
+import { validate } from '../middleware/validate.middleware.js';
+import { authLimiter } from '../middleware/rateLimit.middleware.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-router.post("/register", async (req, res) => {
-  const { email, password, displayName } = req.body ?? {};
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-
-  try {
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: displayName || undefined
-    });
-
-    return res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        displayName: userRecord.displayName
-      }
-    });
-  } catch (error) {
-    const code = error?.code || "auth/internal-error";
-
-    if (code === "auth/email-already-exists") {
-      return res.status(409).json({ message: "Email already in use" });
-    }
-
-    if (code === "auth/invalid-password" || code === "auth/invalid-email") {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    return res.status(500).json({ message: "Failed to register user" });
-  }
-});
-
-router.get("/verify", requireAuth, (req, res) => {
-  res.json({ message: "Token valid", user: req.user });
-});
+router.post(
+    '/register',
+    authLimiter,
+    validate(Joi.object({
+        firebaseIdToken: Joi.string().required(),
+        role: Joi.string().valid('customer', 'provider').optional(),
+        providerProfile: Joi.object({
+            categories: Joi.array().items(Joi.string()).min(1),
+            bio: Joi.string().allow(''),
+            yearsExperience: Joi.number().min(0),
+            serviceArea: Joi.string().allow(''),
+            location: Joi.object({
+                type: Joi.string().valid('Point').default('Point'),
+                coordinates: Joi.array().items(Joi.number()).length(2),
+            }),
+        }).optional(),
+    })),
+    register
+);
+router.post('/login', authLimiter, validate(Joi.object({ firebaseIdToken: Joi.string().required() })), login);
+router.post('/refresh', authLimiter, validate(Joi.object({ refreshToken: Joi.string().required() })), refresh);
+router.post('/logout', requireAuth, validate(Joi.object({ refreshToken: Joi.string().required() })), logout);
 
 export default router;

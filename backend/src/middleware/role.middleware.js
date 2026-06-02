@@ -1,5 +1,10 @@
-export const onlyAdmin = (req, res, next) => {
-  const role = req.user?.role; // from Firebase custom claim
-  if (role !== "admin") return res.status(403).json({ message: "Forbidden" });
-  next();
+const allowRoles = (...roles) => (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+        return res.status(403).json({ success: false, message: 'Forbidden', data: null, pagination: null, errorCode: 'FORBIDDEN' });
+    }
+    next();
 };
+
+export const onlyCustomer = allowRoles('customer');
+export const onlyProvider = allowRoles('provider');
+export const onlyAdmin = allowRoles('admin');
