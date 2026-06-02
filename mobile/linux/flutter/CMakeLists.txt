@@ -4,7 +4,12 @@ cmake_minimum_required(VERSION 3.10)
 set(EPHEMERAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ephemeral")
 
 # Configuration provided via flutter tool.
-include(${EPHEMERAL_DIR}/generated_config.cmake)
+if(EXISTS ${EPHEMERAL_DIR}/generated_config.cmake)
+  include(${EPHEMERAL_DIR}/generated_config.cmake)
+else()
+  message(STATUS "Flutter generated_config.cmake not found. Skipping Flutter-specific configuration.")
+  message(STATUS "This is expected when building on non-Linux platforms.")
+endif()
 
 # TODO: Move the rest of this into files in ephemeral. See
 # https://github.com/flutter/flutter/issues/57146.
@@ -20,13 +25,18 @@ function(list_prepend LIST_NAME PREFIX)
 endfunction()
 
 # === Flutter Library ===
-# System-level dependencies.
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
-pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
-pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
-
-set(FLUTTER_LIBRARY "${EPHEMERAL_DIR}/libflutter_linux_gtk.so")
+# System-level dependencies (Linux only).
+if(UNIX AND NOT APPLE)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+  pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+  pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+  
+  set(FLUTTER_LIBRARY "${EPHEMERAL_DIR}/libflutter_linux_gtk.so")
+else()
+  message(STATUS "Skipping Linux-specific Flutter library configuration on non-Linux platform.")
+  set(FLUTTER_LIBRARY "")
+endif()
 
 # Published to parent scope for install step.
 set(FLUTTER_LIBRARY ${FLUTTER_LIBRARY} PARENT_SCOPE)
@@ -62,11 +72,16 @@ target_include_directories(flutter INTERFACE
   "${EPHEMERAL_DIR}"
 )
 target_link_libraries(flutter INTERFACE "${FLUTTER_LIBRARY}")
-target_link_libraries(flutter INTERFACE
-  PkgConfig::GTK
-  PkgConfig::GLIB
-  PkgConfig::GIO
-)
+
+# Only link GTK/GLIB/GIO libraries on Linux
+if(UNIX AND NOT APPLE)
+  target_link_libraries(flutter INTERFACE
+    PkgConfig::GTK
+    PkgConfig::GLIB
+    PkgConfig::GIO
+  )
+endif()
+
 add_dependencies(flutter flutter_assemble)
 
 # === Flutter tool backend ===
