@@ -12,7 +12,8 @@
     "seed": "node src/utils/seed.js",
     "create-admin": "node src/utils/create-admin.js",
     "backup:win": "powershell -ExecutionPolicy Bypass -File scripts/backup.ps1",
-    "backup:sh": "bash scripts/backup.sh"
+    "backup:sh": "bash scripts/backup.sh",
+    "drive:oauth": "node scripts/google-drive-oauth.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
   "type": "module",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "bson": "^7.2.0",
     "cloudinary": "^1.41.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
@@ -29,6 +31,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.2.1",
     "firebase-admin": "^13.7.0",
+    "googleapis": "^173.0.0",
     "helmet": "^8.1.0",
     "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.3",

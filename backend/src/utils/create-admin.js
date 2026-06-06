@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
-import Admin from '../models/Admin.model.js';
-import { hashPassword } from './password.js';
+import { upsertAdminAccount } from '../services/admin-bootstrap.service.js';
 
 const [, , emailArg, passwordArg, nameArg, roleArg] = process.argv;
 
@@ -22,23 +21,13 @@ const run = async () => {
         socketTimeoutMS: env.MONGO_SOCKET_TIMEOUT_MS,
     });
 
-    const passwordHash = await hashPassword(password);
-    const admin = await Admin.findOneAndUpdate(
-        { email, isDeleted: false },
-        {
-            $set: {
-                name,
-                role,
-                passwordHash,
-                isActive: true,
-                updatedAt: new Date(),
-            },
-            $setOnInsert: {
-                createdAt: new Date(),
-            },
-        },
-        { upsert: true, returnDocument: 'after' }
-    ).select('+passwordHash +refreshTokens');
+    const admin = await upsertAdminAccount({
+        email,
+        password,
+        name,
+        role,
+        resetSessions: true,
+    });
 
     console.log(`Admin ready: ${admin.email} (${admin.role})`);
     await mongoose.connection.close();
