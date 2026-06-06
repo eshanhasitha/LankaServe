@@ -7,9 +7,11 @@ import AuditLog from '../models/AuditLog.model.js';
 import Advertisement from '../models/Advertisement.model.js';
 import Badge from '../models/Badge.model.js';
 import Notification from '../models/Notification.model.js';
+import SupportRequest from '../models/SupportRequest.model.js';
 import { sendResponse } from '../utils/response.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { writeAuditLog } from '../services/audit.service.js';
+import { formatNotificationTimeLabel, formatNotificationReceivedLabel } from '../services/notification.service.js';
 
 export const dashboard = async (req, res, next) => {
     try {
@@ -42,6 +44,33 @@ export const deactivateUser = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+export const providers = async (req, res, next) => {
+    try {
+        const { page, limit, skip } = getPagination(req.query);
+        const filter = { isDeleted: false };
+
+        if (req.query?.verified === 'true') filter.verified = true;
+        if (req.query?.verified === 'false') filter.verified = false;
+        if (req.query?.verificationStatus) filter['verification.status'] = req.query.verificationStatus;
+
+        const [items, total] = await Promise.all([
+            ServiceProvider.find(filter)
+                .populate('userId', 'name email role district city profileImage isActive createdAt')
+                .populate('badges')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            ServiceProvider.countDocuments(filter),
+        ]);
+
+        return sendResponse(res, {
+            message: 'Providers',
+            data: items,
+            pagination: buildPaginationMeta({ page, limit, total }),
+        });
+    } catch (error) { next(error); }
+};
+
 export const verifyProvider = async (req, res, next) => {
     try {
         const provider = await ServiceProvider.findByIdAndUpdate(
@@ -64,6 +93,382 @@ export const verifyProvider = async (req, res, next) => {
             userAgent: req.headers['user-agent'] || '',
         });
         return sendResponse(res, { message: 'Provider verified', data: provider });
+    } catch (error) { next(error); }
+};
+
+function titleFromAuditAction(action) {
+    return String(action || 'System Event')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function serializeAdminNotification(item, now = new Date()) {
+    const object = typeof item.toObject === 'function' ? item.toObject() : item;
+    const eventAt = object.createdAt || object.updatedAt || new Date();
+
+    return {
+        ...object,
+        eventAt,
+        timeLabel: formatNotificationTimeLabel(eventAt, now),
+        receivedLabel: formatNotificationReceivedLabel(eventAt, now),
+    };
+}
+
+function serializeSupportNotification(ticket, now = new Date()) {
+    const user = ticket.userId || {};
+    const eventAt = ticket.createdAt || ticket.updatedAt || new Date();
+
+    return {
+        _id: `support:${ticket._id}`,
+        title: `Support request: ${ticket.subject || ticket.category}`,
+        body: `${user.name || 'A user'} opened ${ticket.category || 'a support request'} (${ticket.ticketNumber}).`,
+        type: 'system',
+        isRead: true,
+        synthetic: true,
+        data: {
+            supportRequestId: String(ticket._id),
+            ticketNumber: ticket.ticketNumber,
+            category: 'support',
+            status: ticket.status,
+        },
+        createdAt: eventAt,
+        updatedAt: ticket.updatedAt || eventAt,
+        eventAt,
+        timeLabel: formatNotificationTimeLabel(eventAt, now),
+        receivedLabel: formatNotificationReceivedLabel(eventAt, now),
+    };
+}
+
+function serializeAuditNotification(log, now = new Date()) {
+    const eventAt = log.createdAt || log.updatedAt || new Date();
+
+    return {
+        _id: `audit:${log._id}`,
+        title: titleFromAuditAction(log.action),
+        body: `${log.entity || 'System'} ${log.entityId ? `#${String(log.entityId).slice(-6)}` : ''}`.trim(),
+        type: 'system',
+        isRead: true,
+        synthetic: true,
+        data: {
+            auditLogId: String(log._id),
+            action: log.action,
+            entity: log.entity,
+            entityId: log.entityId,
+        },
+        createdAt: eventAt,
+        updatedAt: log.updatedAt || eventAt,
+        eventAt,
+        timeLabel: formatNotificationTimeLabel(eventAt, now),
+        receivedLabel: formatNotificationReceivedLabel(eventAt, now),
+    };
+}
+
+export const adminNotifications = async (req, res, next) => {
+    try {
+        const { page, limit, skip } = getPagination(req.query);
+        const now = new Date();
+        const filter = {
+            userId: req.admin._id,
+            isDeleted: false,
+        };
+
+        if (req.query?.unreadOnly === 'true') filter.isRead = false;
+        if (req.query?.type) filter.type = req.query.type;
+
+        const [storedItems, storedTotal, supportItems, auditItems] = await Promise.all([
+            Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Notification.countDocuments(filter),
+            req.query?.unreadOnly === 'true'
+                ? []
+                : SupportRequest.find({ status: { $in: ['open', 'in_progress'] } })
+                    .populate('userId', 'name email role')
+                    .sort({ createdAt: -1 })
+                    .limit(Math.min(limit, 10)),
+            req.query?.unreadOnly === 'true'
+                ? []
+                : AuditLog.find({ isDeleted: false })
+                    .sort({ createdAt: -1 })
+                    .limit(Math.min(limit, 10)),
+        ]);
+
+        const items = [
+            ...storedItems.map((item) => serializeAdminNotification(item, now)),
+            ...supportItems.map((item) => serializeSupportNotification(item, now)),
+            ...auditItems.map((item) => serializeAuditNotification(item, now)),
+        ].sort((a, b) => new Date(b.eventAt).getTime() - new Date(a.eventAt).getTime());
+
+        return sendResponse(res, {
+            message: 'Admin notifications',
+            data: items.slice(0, limit),
+            pagination: buildPaginationMeta({ page, limit, total: storedTotal + supportItems.length + auditItems.length }),
+        });
+    } catch (error) { next(error); }
+};
+
+export const markAdminNotificationRead = async (req, res, next) => {
+    try {
+        const id = String(req.params.id || '');
+        if (id.startsWith('support:') || id.startsWith('audit:')) {
+            return sendResponse(res, { message: 'Notification read', data: { _id: id, isRead: true, synthetic: true } });
+        }
+
+        const item = await Notification.findOneAndUpdate(
+            { _id: id, userId: req.admin._id, isDeleted: false },
+            { isRead: true },
+            { returnDocument: 'after' },
+        );
+
+        if (!item) {
+            return sendResponse(res, { statusCode: 404, success: false, message: 'Notification not found' });
+        }
+
+        return sendResponse(res, { message: 'Notification read', data: serializeAdminNotification(item) });
+    } catch (error) { next(error); }
+};
+
+export const markAllAdminNotificationsRead = async (req, res, next) => {
+    try {
+        const result = await Notification.updateMany(
+            { userId: req.admin._id, isDeleted: false, isRead: false },
+            { isRead: true },
+        );
+
+        return sendResponse(res, {
+            message: 'Notifications read',
+            data: { updated: result.modifiedCount || 0 },
+        });
+    } catch (error) { next(error); }
+};
+
+const REPORT_TYPES = new Set(['users', 'providers', 'jobs', 'qr', 'reviews', 'support']);
+
+const normalizeReportRegion = (district) => {
+    const text = String(district || '').trim();
+    return text || 'Unknown';
+};
+
+const normalizeReportStatus = (status) => String(status || '').replace(/_/g, ' ').trim();
+
+const shortProviderId = (value, index = 0) => {
+    const raw = String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (raw.length >= 4) return `LP-${raw.slice(-4)}`;
+    return `LP-${String(index + 1).padStart(4, '0')}`;
+};
+
+const reportInitials = (value, fallback = 'R') => {
+    const text = String(value || fallback).trim();
+    return text.slice(0, 2).toUpperCase();
+};
+
+const buildReportDateFilter = ({ fromDate, toDate }) => {
+    const createdAt = {};
+
+    if (fromDate) {
+        const start = new Date(`${fromDate}T00:00:00.000`);
+        if (!Number.isNaN(start.getTime())) createdAt.$gte = start;
+    }
+
+    if (toDate) {
+        const end = new Date(`${toDate}T23:59:59.999`);
+        if (!Number.isNaN(end.getTime())) createdAt.$lte = end;
+    }
+
+    return Object.keys(createdAt).length ? { createdAt } : {};
+};
+
+const filterReportRows = (rows, { statusFilter, regionFilter }) => {
+    let nextRows = rows;
+
+    if (statusFilter && statusFilter !== 'All Statuses') {
+        nextRows = nextRows.filter((row) => String(row.status || '').toLowerCase() === String(statusFilter).toLowerCase());
+    }
+
+    if (regionFilter && regionFilter !== 'All Districts') {
+        nextRows = nextRows.filter((row) => String(row.district || '').toLowerCase() === String(regionFilter).toLowerCase());
+    }
+
+    return nextRows;
+};
+
+export const reportRows = async (req, res, next) => {
+    try {
+        const type = REPORT_TYPES.has(req.query.type) ? req.query.type : 'providers';
+        const statusFilter = req.query.status || 'All Statuses';
+        const regionFilter = req.query.district || 'All Districts';
+        const limit = Math.min(1000, Math.max(1, Number(req.query.limit || 500)));
+        const dateFilter = buildReportDateFilter(req.query);
+        const baseFilter = { isDeleted: false, ...dateFilter };
+        let rows = [];
+
+        if (type === 'users') {
+            const usersList = await User.find(baseFilter).sort({ createdAt: -1 }).limit(limit);
+            rows = usersList.map((user) => ({
+                id: user._id,
+                avatar: user.profileImage || '',
+                initials: reportInitials(user.name, 'U'),
+                name: user.name || 'Unknown User',
+                sub: user.email || '-',
+                category: user.role || '-',
+                district: normalizeReportRegion(user.district),
+                jobs: '-',
+                rating: '-',
+                status: user.isActive ? 'Active' : 'Inactive',
+                createdAt: user.createdAt,
+            }));
+        }
+
+        if (type === 'providers') {
+            const providersList = await ServiceProvider.find(baseFilter)
+                .populate('userId', 'name email role district city profileImage isActive createdAt')
+                .sort({ createdAt: -1 })
+                .limit(limit);
+
+            rows = providersList.map((provider, index) => {
+                const user = provider.userId || {};
+                const status = !user.isActive ? 'Suspended' : provider.verified ? 'Verified' : 'Pending Approval';
+                return {
+                    id: provider._id,
+                    avatar: user.profileImage || '',
+                    initials: reportInitials(user.name, 'P'),
+                    name: user.name || 'Unknown Provider',
+                    sub: `ID: ${shortProviderId(user._id, index)}`,
+                    category: provider.categories?.[0] || 'Other',
+                    district: normalizeReportRegion(provider.district || user.district),
+                    jobs: Number(provider.stats?.completedJobs || 0),
+                    rating: Number(provider.stats?.averageRating || 0).toFixed(1),
+                    status,
+                    createdAt: provider.createdAt,
+                };
+            });
+        }
+
+        if (type === 'jobs') {
+            const jobsList = await Job.find(baseFilter)
+                .populate('customerId', 'name email district city profileImage')
+                .populate('providerId', 'name email district city profileImage')
+                .sort({ createdAt: -1 })
+                .limit(limit);
+
+            rows = jobsList.map((job) => {
+                const providerUser = job.providerId || {};
+                const customerUser = job.customerId || {};
+                return {
+                    id: job._id,
+                    avatar: providerUser.profileImage || customerUser.profileImage || '',
+                    initials: reportInitials(providerUser.name || customerUser.name, 'J'),
+                    name: job.title || 'Untitled Job',
+                    sub: `Provider: ${providerUser.name || 'Unassigned'}`,
+                    category: job.category || 'General',
+                    district: normalizeReportRegion(customerUser.district || customerUser.city),
+                    jobs: Number(job.price || job.budget || 0),
+                    rating: '-',
+                    status: normalizeReportStatus(job.status || 'pending'),
+                    createdAt: job.createdAt,
+                };
+            });
+        }
+
+        if (type === 'qr') {
+            const qrList = await QRLog.find(baseFilter)
+                .populate('scannedBy', 'name email district city profileImage')
+                .populate({
+                    path: 'jobId',
+                    populate: [
+                        { path: 'customerId', select: 'name email district city profileImage' },
+                        { path: 'providerId', select: 'name email district city profileImage' },
+                    ],
+                })
+                .sort({ createdAt: -1 })
+                .limit(limit);
+
+            rows = qrList.map((log) => {
+                const job = log.jobId || {};
+                const providerUser = job.providerId || log.scannedBy || {};
+                const customerUser = job.customerId || {};
+                return {
+                    id: log._id,
+                    avatar: providerUser.profileImage || '',
+                    initials: reportInitials(providerUser.name, 'Q'),
+                    name: providerUser.name || 'Unknown Provider',
+                    sub: `Log: ${String(log._id || '').slice(-6).toUpperCase()}`,
+                    category: customerUser.name || 'Unknown Customer',
+                    district: normalizeReportRegion(customerUser.district || customerUser.city || log.scannedBy?.district),
+                    jobs: '-',
+                    rating: '-',
+                    status: log.status === 'success' ? 'VERIFIED' : String(log.status || 'FAILED').toUpperCase(),
+                    createdAt: log.createdAt,
+                };
+            });
+        }
+
+        if (type === 'reviews') {
+            const reviewsList = await Review.find(baseFilter)
+                .populate('customerId', 'name email district city profileImage')
+                .populate('providerId', 'name email district city profileImage')
+                .sort({ createdAt: -1 })
+                .limit(limit);
+
+            rows = reviewsList.map((review) => {
+                const providerUser = review.providerId || {};
+                const customerUser = review.customerId || {};
+                const score = Number(review.rating || 0);
+                let sentiment = 'Neutral';
+                if (score >= 4) sentiment = 'Positive';
+                else if (score <= 2) sentiment = 'Negative';
+
+                return {
+                    id: review._id,
+                    avatar: providerUser.profileImage || '',
+                    initials: reportInitials(providerUser.name, 'R'),
+                    name: providerUser.name || 'Unknown Provider',
+                    sub: `Customer: ${customerUser.name || 'Unknown'}`,
+                    category: String(review.comment || '').slice(0, 32) || '-',
+                    district: normalizeReportRegion(customerUser.district || customerUser.city),
+                    jobs: '-',
+                    rating: score.toFixed(1),
+                    status: sentiment,
+                    createdAt: review.createdAt,
+                };
+            });
+        }
+
+        if (type === 'support') {
+            const supportList = await SupportRequest.find(dateFilter)
+                .populate('userId', 'name email role district city profileImage')
+                .populate('assignedAdminId', 'name role')
+                .sort({ createdAt: -1 })
+                .limit(limit);
+
+            rows = supportList.map((ticket) => {
+                const user = ticket.userId || {};
+                const assignedAdmin = ticket.assignedAdminId || {};
+                return {
+                    id: ticket._id,
+                    avatar: user.profileImage || '',
+                    initials: reportInitials(user.name, 'S'),
+                    name: ticket.subject || ticket.category || 'Support Request',
+                    sub: `${ticket.ticketNumber || ''}${assignedAdmin.name ? ` • Assigned: ${assignedAdmin.name}` : ''}`.trim(),
+                    category: ticket.category || 'Support',
+                    district: normalizeReportRegion(user.district || user.city),
+                    jobs: ticket.priority || '-',
+                    rating: '-',
+                    status: normalizeReportStatus(ticket.status || 'open'),
+                    createdAt: ticket.createdAt,
+                };
+            });
+        }
+
+        const filteredRows = filterReportRows(rows, { statusFilter, regionFilter });
+
+        return sendResponse(res, {
+            message: 'Report rows',
+            data: {
+                type,
+                rows: filteredRows,
+                total: filteredRows.length,
+                generatedAt: new Date(),
+            },
+        });
     } catch (error) { next(error); }
 };
 
