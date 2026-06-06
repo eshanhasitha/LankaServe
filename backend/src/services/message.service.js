@@ -2,6 +2,7 @@ import Message from '../models/Message.model.js';
 import User from '../models/User.model.js';
 import Job from '../models/Job.model.js';
 import Admin from '../models/Admin.model.js';
+import SupportRequest from '../models/SupportRequest.model.js';
 
 const bannedWords = ['spam', 'scam', 'fraud'];
 
@@ -84,6 +85,72 @@ export const findAvailableSupportAdmin = async () => {
         const aPriority = rolePriority[a.role] || 999;
         const bPriority = rolePriority[b.role] || 999;
         if (aPriority !== bPriority) return aPriority - bPriority;
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    })[0];
+};
+
+export const resolveSupportAdminForUser = async (userId) => {
+    const activeAdmins = await Admin.find({
+        isDeleted: false,
+        isActive: true,
+        role: { $in: ['support_admin', 'super_admin'] },
+    }).select('_id name role createdAt');
+
+    if (!activeAdmins.length) return null;
+
+    const activeAdminIds = activeAdmins.map((admin) => admin._id);
+    const activeAdminMap = new Map(activeAdmins.map((admin) => [String(admin._id), admin]));
+
+    const assignedTicket = await SupportRequest.findOne({
+        userId,
+        assignedAdminId: { $in: activeAdminIds },
+        status: { $in: ['open', 'in_progress'] },
+    }).sort({ updatedAt: -1 });
+
+    if (assignedTicket?.assignedAdminId) {
+        const admin = activeAdminMap.get(String(assignedTicket.assignedAdminId));
+        if (admin) return admin;
+    }
+
+    const latestSupportMessage = await Message.findOne({
+        isDeleted: false,
+        contextType: 'direct',
+        $or: [
+            { senderId: userId, receiverId: { $in: activeAdminIds } },
+            { receiverId: userId, senderId: { $in: activeAdminIds } },
+        ],
+    }).sort({ createdAt: -1 });
+
+    if (latestSupportMessage) {
+        const counterpartId = String(
+            String(latestSupportMessage.senderId) === String(userId)
+                ? latestSupportMessage.receiverId
+                : latestSupportMessage.senderId
+        );
+        const admin = activeAdminMap.get(counterpartId);
+        if (admin) return admin;
+    }
+
+    const activeTicketCounts = await SupportRequest.aggregate([
+        {
+            $match: {
+                assignedAdminId: { $in: activeAdminIds },
+                status: { $in: ['open', 'in_progress'] },
+            },
+        },
+        { $group: { _id: '$assignedAdminId', count: { $sum: 1 } } },
+    ]);
+    const countMap = new Map(activeTicketCounts.map((item) => [String(item._id), item.count]));
+
+    return [...activeAdmins].sort((a, b) => {
+        const aCount = countMap.get(String(a._id)) || 0;
+        const bCount = countMap.get(String(b._id)) || 0;
+        if (aCount !== bCount) return aCount - bCount;
+
+        const aPriority = rolePriority[a.role] || 999;
+        const bPriority = rolePriority[b.role] || 999;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+
         return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
     })[0];
 };
@@ -171,48 +238,20 @@ export const listConversations = async (userId, options = {}) => {
 };
 
 export const contactSupportAgent = async ({ userId, content }) => {
-    const activeAdmins = await Admin.find({
-        isDeleted: false,
-        isActive: true,
-        role: { $in: ['support_admin', 'super_admin'] },
-    }).select('_id name role createdAt');
-
-    if (!activeAdmins.length) {
-        throw new Error('No support admin is available right now');
-    }
-
-    const activeAdminIds = activeAdmins.map((admin) => admin._id);
-    const latestSupportMessage = await Message.findOne({
-        isDeleted: false,
-        contextType: 'direct',
-        $or: [
-            { senderId: userId, receiverId: { $in: activeAdminIds } },
-            { receiverId: userId, senderId: { $in: activeAdminIds } },
-        ],
-    }).sort({ createdAt: -1 });
-
-    let agent = null;
-    if (latestSupportMessage) {
-        const counterpartId = String(
-            String(latestSupportMessage.senderId) === String(userId)
-                ? latestSupportMessage.receiverId
-                : latestSupportMessage.senderId
-        );
-        agent = activeAdmins.find((admin) => String(admin._id) === counterpartId) || null;
-    }
-
-    if (!agent) {
-        agent = [...activeAdmins].sort((a, b) => {
-            const aPriority = rolePriority[a.role] || 999;
-            const bPriority = rolePriority[b.role] || 999;
-            if (aPriority !== bPriority) return aPriority - bPriority;
-            return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-        })[0];
-    }
+    const agent = await resolveSupportAdminForUser(userId);
 
     if (!agent) {
         throw new Error('No support admin is available right now');
     }
+
+    await SupportRequest.updateMany(
+        {
+            userId,
+            status: { $in: ['open', 'in_progress'] },
+            $or: [{ assignedAdminId: null }, { assignedAdminId: { $exists: false } }],
+        },
+        { assignedAdminId: agent._id },
+    );
 
     const message = await sendMessage({
         senderId: userId,

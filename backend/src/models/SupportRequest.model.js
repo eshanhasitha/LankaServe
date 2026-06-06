@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const supportRequestSchema = new mongoose.Schema({
     ticketNumber: { type: String, required: true, unique: true, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    assignedAdminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null, index: true },
     role: { type: String, enum: ['customer', 'provider', 'admin'], required: true, index: true },
     category: {
         type: String,
@@ -32,5 +33,6 @@ const supportRequestSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 supportRequestSchema.index({ userId: 1, createdAt: -1 });
+supportRequestSchema.index({ assignedAdminId: 1, status: 1, createdAt: -1 });
 
 export default mongoose.model('SupportRequest', supportRequestSchema);

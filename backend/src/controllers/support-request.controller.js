@@ -1,6 +1,7 @@
 import SupportRequest from '../models/SupportRequest.model.js';
 import { sendResponse } from '../utils/response.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
+import { resolveSupportAdminForUser } from '../services/message.service.js';
 
 const statusLabels = {
     open: 'Open',
@@ -28,6 +29,11 @@ function serializeTicket(ticket) {
         userId: ticket.userId?._id || ticket.userId || null,
         userName: ticket.userId?.name || '',
         userEmail: ticket.userId?.email || '',
+        userDistrict: ticket.userId?.district || '',
+        userCity: ticket.userId?.city || '',
+        assignedAdminId: ticket.assignedAdminId?._id || ticket.assignedAdminId || null,
+        assignedAdminName: ticket.assignedAdminId?.name || '',
+        assignedAdminRole: ticket.assignedAdminId?.role || '',
         category: ticket.category,
         subject: ticket.subject,
         message: ticket.message,
@@ -44,15 +50,18 @@ function serializeTicket(ticket) {
 
 export const createSupportRequest = async (req, res, next) => {
     try {
+        const assignedAdmin = await resolveSupportAdminForUser(req.user._id);
         const ticket = await SupportRequest.create({
             ticketNumber: await generateTicketNumber(),
             userId: req.user._id,
+            assignedAdminId: assignedAdmin?._id || null,
             role: req.user.role,
             category: req.body.category,
             subject: req.body.subject || req.body.category,
             message: req.body.message,
             attachments: req.body.attachments || [],
         });
+        await ticket.populate('assignedAdminId', 'name role');
 
         return sendResponse(res, {
             statusCode: 201,
@@ -70,7 +79,8 @@ export const listMySupportRequests = async (req, res, next) => {
         const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 50) : 10;
         const tickets = await SupportRequest.find({ userId: req.user._id })
             .sort({ createdAt: -1 })
-            .limit(limit);
+            .limit(limit)
+            .populate('assignedAdminId', 'name role');
 
         return sendResponse(res, {
             message: 'My support requests',
@@ -83,7 +93,8 @@ export const listMySupportRequests = async (req, res, next) => {
 
 export const getMySupportRequest = async (req, res, next) => {
     try {
-        const ticket = await SupportRequest.findOne({ _id: req.params.id, userId: req.user._id });
+        const ticket = await SupportRequest.findOne({ _id: req.params.id, userId: req.user._id })
+            .populate('assignedAdminId', 'name role');
         if (!ticket) {
             return sendResponse(res, {
                 statusCode: 404,
@@ -119,6 +130,12 @@ export const listSupportRequestsForAdmin = async (req, res, next) => {
         if (req.query?.category) {
             filter.category = req.query.category;
         }
+        if (req.query?.assigned === 'me' && req.admin?._id) {
+            filter.assignedAdminId = req.admin._id;
+        }
+        if (req.query?.assignedAdminId) {
+            filter.assignedAdminId = req.query.assignedAdminId;
+        }
         if (req.query?.search) {
             const pattern = String(req.query.search).trim();
             if (pattern) {
@@ -135,7 +152,8 @@ export const listSupportRequestsForAdmin = async (req, res, next) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
-                .populate('userId', 'name email role'),
+                .populate('userId', 'name email role district city')
+                .populate('assignedAdminId', 'name role'),
             SupportRequest.countDocuments(filter),
         ]);
 
@@ -151,7 +169,9 @@ export const listSupportRequestsForAdmin = async (req, res, next) => {
 
 export const getSupportRequestForAdmin = async (req, res, next) => {
     try {
-        const ticket = await SupportRequest.findById(req.params.id).populate('userId', 'name email role');
+        const ticket = await SupportRequest.findById(req.params.id)
+            .populate('userId', 'name email role district city')
+            .populate('assignedAdminId', 'name role');
         if (!ticket) {
             return sendResponse(res, {
                 statusCode: 404,
@@ -194,7 +214,9 @@ export const updateSupportRequestForAdmin = async (req, res, next) => {
             req.params.id,
             updates,
             { returnDocument: 'after' },
-        ).populate('userId', 'name email role');
+        )
+            .populate('userId', 'name email role district city')
+            .populate('assignedAdminId', 'name role');
 
         if (!ticket) {
             return sendResponse(res, {

@@ -6,11 +6,16 @@ import {
     dashboard,
     users,
     deactivateUser,
+    providers,
     verifyProvider,
+    reportRows,
     jobs,
     reviews,
     qrLogs,
     auditLogs,
+    adminNotifications,
+    markAdminNotificationRead,
+    markAllAdminNotificationsRead,
     ads,
     createAd,
     updateAd,
@@ -35,6 +40,11 @@ import {
     adminSendSupportMessage,
     adminReadSupportThread,
 } from '../controllers/message.controller.js';
+import {
+    createBackup,
+    listBackups,
+    restoreBackup,
+} from '../controllers/backup.controller.js';
 
 const router = express.Router();
 
@@ -43,11 +53,19 @@ router.use(requireAdminAuth);
 router.get('/dashboard', dashboard);
 router.get('/users', users);
 router.put('/users/:id/deactivate', deactivateUser);
+router.get('/providers', providers);
 router.put('/providers/:id/verify', verifyProvider);
+router.get('/reports', reportRows);
 router.get('/jobs', jobs);
 router.get('/reviews', reviews);
 router.get('/qr-logs', qrLogs);
 router.get('/audit-logs', auditLogs);
+router.get('/notifications', adminNotifications);
+router.put('/notifications/read-all', markAllAdminNotificationsRead);
+router.put('/notifications/:id/read', markAdminNotificationRead);
+router.get('/backups', listBackups);
+router.post('/backups', createBackup);
+router.post('/backups/:id/restore', restoreBackup);
 router.get('/ads', ads);
 router.post('/ads', createAd);
 router.put('/ads/:id', updateAd);

@@ -6,9 +6,11 @@ import { rankingCron } from './cron/ranking.cron.js';
 import { badgeCron } from './cron/badge.cron.js';
 import { cleanupCron } from './cron/cleanup.cron.js';
 import { backupCron } from './cron/backup.cron.js';
+import { bootstrapAdminAccount } from './services/admin-bootstrap.service.js';
 
 const start = async () => {
     await connectDB();
+    await bootstrapAdminAccount();
 
     app.listen(env.PORT, () => {
         logger.info(`Server running on port ${env.PORT}`);
