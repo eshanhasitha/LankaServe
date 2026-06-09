@@ -68,8 +68,20 @@ export default function LoginPage() {
 
   return (
     <section className="min-h-screen flex flex-col bg-[#F0F2F5] font-['Inter'] p-4">
-      <div className="fixed top-6 right-6 z-50">
-        <div className="flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
+      {/* Top Controls Container: Language Selection & Back Button */}
+      <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-center pointer-events-none">
+        {/* Sleek Tailwind Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-full shadow-sm text-xs font-semibold text-slate-600 hover:text-[#1E3A8A] hover:bg-slate-50 transition-all active:scale-95"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-sm">arrow_back</span>
+          Back
+        </button>
+
+        {/* Language Switcher */}
+        <div className="pointer-events-auto flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
           {languageOptions.map((option, index) => (
             <div key={option.code} className="flex items-center">
               {index > 0 && <div className="w-px h-3 bg-slate-300" />}
@@ -87,7 +99,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <main className="grow flex items-center justify-center px-4">
+      <main className="grow flex items-center justify-center px-4 mt-16">
         <div className="w-full max-w-115 bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-10">
           <div className="flex flex-col items-center mb-8">
             <div className="flex items-center justify-center w-14 h-14 bg-[#1E3A8A] rounded-2xl mb-4">
