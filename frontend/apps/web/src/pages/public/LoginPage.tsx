@@ -41,8 +41,21 @@ export default function LoginPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    setBusy(true);
+    
+    // Local Front-End Validation Bug Fix 🎯
     try {
+      if (!email.trim()) {
+        throw new Error(copy.register.errors.email || 'Please enter your email address.');
+      }
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error(copy.register.errors.validEmail || 'Please enter a valid email address.');
+      }
+      if (!password) {
+        throw new Error(copy.register.errors.failed || 'Please enter your password.');
+      }
+
+      setBusy(true);
       const token = await loginWithEmailPassword(email.trim(), password);
       const data = await loginWithToken(token);
       await redirectByRole(data);
