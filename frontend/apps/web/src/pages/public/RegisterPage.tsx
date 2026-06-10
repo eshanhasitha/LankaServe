@@ -61,6 +61,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
   const { loginWithToken, registerWithToken } = useAuth();
   const navigate = useNavigate();
   const copy = authCopy[language];
@@ -139,16 +140,31 @@ export default function RegisterPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
+    setPasswordMismatch(false); // Reset visual error borders before check
     setBusy(true);
     try {
       if (!fullName.trim()) throw new Error(copy.register.errors.fullName);
       if (!email.trim()) throw new Error(copy.register.errors.email);
+      
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(email.trim())) throw new Error(copy.register.errors.validEmail);
       if (!email.trim().endsWith('@gmail.com')) throw new Error(copy.register.errors.gmail);
       if (!phoneNumber.trim()) throw new Error(copy.register.errors.phone);
+      
+      // 📦 Fixed Address Bug: Intercept missing address immediately!
       if (!address.trim()) throw new Error(copy.register.errors.address);
-      if (password !== confirmPassword) throw new Error(copy.register.errors.passwordMatch);
+      
+      if (!password) {
+        throw new Error('Please enter a password.');
+      }
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters long.');
+      }
+      if (password !== confirmPassword) {
+        setPasswordMismatch(true); // 🔴 Trigger red border styles dynamically
+        throw new Error(copy.register.errors.passwordMatch);
+      }
+      
       if (!agreeTerms) throw new Error(copy.register.errors.terms);
       if (role === 'provider' && !serviceCategory) throw new Error(copy.register.errors.category);
       if (role === 'provider' && !serviceArea.trim()) throw new Error(copy.register.errors.serviceArea);
@@ -318,7 +334,10 @@ export default function RegisterPage() {
                 <label className={labelClass} htmlFor="password">{copy.common.password}</label>
                 <div className="relative">
                   <input
-                    className={inputClass + ' pr-11'}
+                    className={`${inputClass.replace(
+                      'border-slate-200',
+                      passwordMismatch ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200'
+                    )} pr-11`}
                     id="password"
                     placeholder={copy.register.passwordPlaceholder}
                     type={showPassword ? 'text' : 'password'}
@@ -340,7 +359,10 @@ export default function RegisterPage() {
                 <label className={labelClass} htmlFor="confirm-password">{copy.common.confirmPassword}</label>
                 <div className="relative">
                   <input
-                    className={inputClass + ' pr-11'}
+                    className={`${inputClass.replace(
+                      'border-slate-200',
+                      passwordMismatch ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200'
+                    )} pr-11`}
                     id="confirm-password"
                     placeholder={copy.register.confirmPasswordPlaceholder}
                     type={showConfirmPassword ? 'text' : 'password'}
