@@ -191,7 +191,13 @@ export default function RegisterPage() {
         await loginWithToken(token);
       }
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
-    } catch (signupError) {
+    } catch (signupError: any) {
+      // 🎯 Bug #5 Fix: Silently return if the user closes the Google window manually
+      if (signupError?.code === 'auth/popup-closed-by-user' || 
+          signupError?.message?.includes('popup-closed-by-user')) {
+        return; 
+      }
+      
       notifyError(signupError.message || copy.register.errors.failed);
     } finally {
       setBusy(false);
