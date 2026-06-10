@@ -72,8 +72,14 @@ export default function LoginPage() {
       const token = await loginWithGooglePopup();
       const data = await loginWithToken(token);
       await redirectByRole(data);
-    } catch (loginError) {
-      notifyError(loginError.message || copy.login.failed);
+    } catch (loginError: any) {
+      // 🎯 Bug #4 Fix: Silently absorb the error if the user manually closes the popup
+      if (loginError?.code === 'auth/popup-closed-by-user' || 
+          loginError?.message?.includes('popup-closed-by-user')) {
+        return; 
+      }
+      
+      notifyError(loginError.message || copy.login.errors.failed);
     } finally {
       setBusy(false);
     }
