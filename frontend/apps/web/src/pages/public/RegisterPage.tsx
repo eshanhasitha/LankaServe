@@ -61,6 +61,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
   const { loginWithToken, registerWithToken } = useAuth();
   const navigate = useNavigate();
   const copy = authCopy[language];
@@ -139,16 +140,31 @@ export default function RegisterPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
+    setPasswordMismatch(false); // Reset visual error borders before check
     setBusy(true);
     try {
       if (!fullName.trim()) throw new Error(copy.register.errors.fullName);
       if (!email.trim()) throw new Error(copy.register.errors.email);
+      
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(email.trim())) throw new Error(copy.register.errors.validEmail);
       if (!email.trim().endsWith('@gmail.com')) throw new Error(copy.register.errors.gmail);
       if (!phoneNumber.trim()) throw new Error(copy.register.errors.phone);
+      
+      // 📦 Fixed Address Bug: Intercept missing address immediately!
       if (!address.trim()) throw new Error(copy.register.errors.address);
-      if (password !== confirmPassword) throw new Error(copy.register.errors.passwordMatch);
+      
+      if (!password) {
+        throw new Error('Please enter a password.');
+      }
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters long.');
+      }
+      if (password !== confirmPassword) {
+        setPasswordMismatch(true); // 🔴 Trigger red border styles dynamically
+        throw new Error(copy.register.errors.passwordMatch);
+      }
+      
       if (!agreeTerms) throw new Error(copy.register.errors.terms);
       if (role === 'provider' && !serviceCategory) throw new Error(copy.register.errors.category);
       if (role === 'provider' && !serviceArea.trim()) throw new Error(copy.register.errors.serviceArea);
@@ -175,7 +191,13 @@ export default function RegisterPage() {
         await loginWithToken(token);
       }
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
-    } catch (signupError) {
+    } catch (signupError: any) {
+      // 🎯 Bug #5 Fix: Silently return if the user closes the Google window manually
+      if (signupError?.code === 'auth/popup-closed-by-user' || 
+          signupError?.message?.includes('popup-closed-by-user')) {
+        return; 
+      }
+      
       notifyError(signupError.message || copy.register.errors.failed);
     } finally {
       setBusy(false);
@@ -184,8 +206,20 @@ export default function RegisterPage() {
 
   return (
     <section className="min-h-screen flex flex-col bg-[#F0F2F5] font-['Inter'] p-4">
-      <div className="fixed top-6 right-6 z-50">
-        <div className="flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
+      {/* Top Controls Container: Back Button & Language Selection */}
+      <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-center pointer-events-none">
+        {/* Styled Tailwind Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-full shadow-sm text-xs font-semibold text-slate-600 hover:text-[#1E3A8A] hover:bg-slate-50 transition-all active:scale-95"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-sm">arrow_back</span>
+          Back
+        </button>
+
+        {/* Language Selection Toggles */}
+        <div className="pointer-events-auto flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
           {languageOptions.map((option, index) => (
             <div key={option.code} className="flex items-center">
               {index > 0 && <div className="w-px h-3 bg-slate-300" />}
@@ -203,7 +237,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <main className="grow flex items-center justify-center px-4">
+      <main className="grow flex items-center justify-center px-4 mt-16">
         <div className="w-full max-w-140 bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-10">
           <div className="flex flex-col items-center mb-8">
             <div className="flex items-center justify-center w-14 h-14 bg-[#1E3A8A] rounded-2xl mb-4">
@@ -306,7 +340,10 @@ export default function RegisterPage() {
                 <label className={labelClass} htmlFor="password">{copy.common.password}</label>
                 <div className="relative">
                   <input
-                    className={inputClass + ' pr-11'}
+                    className={`${inputClass.replace(
+                      'border-slate-200',
+                      passwordMismatch ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200'
+                    )} pr-11`}
                     id="password"
                     placeholder={copy.register.passwordPlaceholder}
                     type={showPassword ? 'text' : 'password'}
@@ -328,7 +365,10 @@ export default function RegisterPage() {
                 <label className={labelClass} htmlFor="confirm-password">{copy.common.confirmPassword}</label>
                 <div className="relative">
                   <input
-                    className={inputClass + ' pr-11'}
+                    className={`${inputClass.replace(
+                      'border-slate-200',
+                      passwordMismatch ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200'
+                    )} pr-11`}
                     id="confirm-password"
                     placeholder={copy.register.confirmPasswordPlaceholder}
                     type={showConfirmPassword ? 'text' : 'password'}

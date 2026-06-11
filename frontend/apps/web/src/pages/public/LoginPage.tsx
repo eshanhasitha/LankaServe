@@ -41,8 +41,21 @@ export default function LoginPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    setBusy(true);
+    
+    // Local Front-End Validation Bug Fix 🎯
     try {
+      if (!email.trim()) {
+        throw new Error(copy.register.errors.email || 'Please enter your email address.');
+      }
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error(copy.register.errors.validEmail || 'Please enter a valid email address.');
+      }
+      if (!password) {
+        throw new Error(copy.register.errors.failed || 'Please enter your password.');
+      }
+
+      setBusy(true);
       const token = await loginWithEmailPassword(email.trim(), password);
       const data = await loginWithToken(token);
       await redirectByRole(data);
@@ -59,8 +72,14 @@ export default function LoginPage() {
       const token = await loginWithGooglePopup();
       const data = await loginWithToken(token);
       await redirectByRole(data);
-    } catch (loginError) {
-      notifyError(loginError.message || copy.login.failed);
+    } catch (loginError: any) {
+      // 🎯 Bug #4 Fix: Silently absorb the error if the user manually closes the popup
+      if (loginError?.code === 'auth/popup-closed-by-user' || 
+          loginError?.message?.includes('popup-closed-by-user')) {
+        return; 
+      }
+      
+      notifyError(loginError.message || copy.login.errors.failed);
     } finally {
       setBusy(false);
     }
