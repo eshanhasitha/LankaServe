@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { loginWithGooglePopup, registerWithEmailPassword } from '../../lib/firebase-client.ts';
 import { SERVICE_CATEGORIES } from '../../lib/service-categories.ts';
@@ -43,13 +43,18 @@ function mapSearchResult(item) {
 }
 
 export default function RegisterPage() {
+  const [searchParams] = useSearchParams();
+  const urlRole = searchParams.get('role');
+  
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [address, setAddress] = useState('');
-  const [role, setRole] = useState('customer');
+  
+  const [role, setRole] = useState(urlRole === 'provider' || urlRole === 'customer' ? urlRole : 'customer');
+  
   const [serviceCategory, setServiceCategory] = useState('');
   const [serviceArea, setServiceArea] = useState('');
   const [providerLocation, setProviderLocation] = useState<any>(null);
@@ -65,6 +70,12 @@ export default function RegisterPage() {
   const { loginWithToken, registerWithToken } = useAuth();
   const navigate = useNavigate();
   const copy = authCopy[language];
+
+  useEffect(() => {
+    if (urlRole === 'provider' || urlRole === 'customer') {
+      setRole(urlRole);
+    }
+  }, [urlRole]);
 
   useEffect(() => {
     window.localStorage.setItem(languageStorageKey, language);
@@ -105,7 +116,7 @@ export default function RegisterPage() {
         const payload = await response.json();
         const mapped = Array.isArray(payload) ? payload.map(mapSearchResult) : [];
         setLocationSuggestions(mapped.length ? mapped : fallbackSuggestions);
-      } catch (loadError) {
+      } catch (loadError: any) {
         if (loadError.name !== 'AbortError') {
           setLocationSuggestions(fallbackSuggestions);
         }
@@ -188,7 +199,7 @@ export default function RegisterPage() {
       const token = await loginWithGooglePopup();
       try {
         await registerWithToken(token, role, providerProfile);
-      } catch (registerError) {
+      } catch (registerError: any) {
         if (!String(registerError.message).toLowerCase().includes('already exists')) throw registerError;
         await loginWithToken(token);
       }

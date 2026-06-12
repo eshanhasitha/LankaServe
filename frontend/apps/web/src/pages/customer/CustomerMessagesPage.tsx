@@ -51,6 +51,11 @@ export default function CustomerMessagesPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // 🎯 UI & Hardware Action System State refs
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   const routeConversation = useMemo(() => {
     const counterpartId = location.state?.providerId;
     if (!counterpartId || !user?._id) return null;
@@ -103,7 +108,7 @@ export default function CustomerMessagesPage() {
         return cleaned[0]?.threadId || '';
       });
       return cleaned;
-    } catch (loadError) {
+    } catch (loadError: any) {
       setActiveMessages([]);
       setConversations(routeConversation ? [routeConversation] : []);
       setError(loadError.message || 'Failed to load messages');
@@ -142,7 +147,7 @@ export default function CustomerMessagesPage() {
           text: message?.content || '',
         }))
       );
-    } catch (loadError) {
+    } catch (loadError: any) {
       setError(loadError.message || 'Failed to load messages');
       setActiveMessages([]);
     }
@@ -252,13 +257,72 @@ export default function CustomerMessagesPage() {
       ]);
       setDraftMessage('');
       loadConversations(true);
-    } catch (sendError) {
+    } catch (sendError: any) {
       setError(sendError.message || 'Failed to send message');
     }
   }
 
+  // 📱 Live Hardware Handlers
+  function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+
+    // For now, stage the selected file name into the chat bar to show it works.
+    // When the backend multimedia attachments feature is ready, this will upload directly to S3/Cloudinary.
+    setDraftMessage(`📸 Attached Image: ${selectedFile.name}`);
+  }
+
+  function handleShareLocation() {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your current browser application.');
+      setIsAttachmentMenuOpen(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        // Generate an interactive map url string
+        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        setDraftMessage(`📍 Live Location Pin: ${mapsUrl}`);
+        setIsAttachmentMenuOpen(false);
+      },
+      () => {
+        setError('Unable to fetch your precise GPS device coordinates. Check tracking permissions.');
+        setIsAttachmentMenuOpen(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white relative">
+      
+      {/* 📁 Hidden Real Interactive Inputs Pipeline System */}
+      <input 
+        type="file" 
+        ref={galleryInputRef} 
+        onChange={handleFileSelection} 
+        accept="image/*" 
+        className="hidden" 
+      />
+      <input 
+        type="file" 
+        ref={cameraInputRef} 
+        onChange={handleFileSelection} 
+        accept="image/*" 
+        capture="environment" 
+        className="hidden" 
+      />
+
+      {/* 🔮 WhatsApp Overlay Tint Layer */}
+      {isAttachmentMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-[9999] transition-opacity duration-300"
+          onClick={() => setIsAttachmentMenuOpen(false)}
+        />
+      )}
+
       <aside className="w-[320px] bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-slate-200 bg-white">
           <h2 className="text-xl font-bold mb-4">Messages</h2>
@@ -305,7 +369,7 @@ export default function CustomerMessagesPage() {
                   <Avatar src={conversation.counterpartAvatar} name={conversation.counterpartName} className="w-12 h-12" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
+                  <div className="flex justify-between items-start">
                     <h4 className="font-semibold text-sm truncate">{conversation.counterpartName}</h4>
                     <span className="text-[10px] text-slate-400">{conversation.time}</span>
                   </div>
@@ -321,9 +385,66 @@ export default function CustomerMessagesPage() {
         </div>
       </aside>
 
-      <main className="flex-1 bg-white flex flex-col min-w-0">
+      <main className="flex-1 bg-white flex flex-col min-w-0 relative">
         {activeConversation ? (
           <>
+            {/* 📱 WhatsApp-Style Responsive Slide-Up / Floating Action Sheet */}
+            <div 
+              className={`fixed bottom-0 left-0 right-0 z-[10000] rounded-t-3xl bg-white p-6 shadow-2xl transition-all duration-300 ease-in-out 
+                md:absolute md:bottom-24 md:left-6 md:right-auto md:w-[320px] md:rounded-2xl md:border md:border-slate-200
+                ${isAttachmentMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-10 opacity-0 pointer-events-none md:translate-y-4'}`}
+            >
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 md:hidden" />
+              <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-5">Share Attachment</p>
+              
+              {/* 🔘 Dynamic Media Grid */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {/* 🖼️ Gallery Option */}
+                <button 
+                  type="button" 
+                  onClick={() => { galleryInputRef.current?.click(); setIsAttachmentMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 group outline-none"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600 shadow-sm group-hover:scale-105 transition-transform">
+                    <span className="material-symbols-outlined text-xl">image</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600">Gallery</span>
+                </button>
+
+                {/* 📸 Camera Option */}
+                <button 
+                  type="button" 
+                  onClick={() => { cameraInputRef.current?.click(); setIsAttachmentMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 group outline-none"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100 text-pink-600 shadow-sm group-hover:scale-105 transition-transform">
+                    <span className="material-symbols-outlined text-xl">photo_camera</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600">Camera</span>
+                </button>
+
+                {/* 📍 Location Option */}
+                <button 
+                  type="button" 
+                  onClick={handleShareLocation}
+                  className="flex flex-col items-center gap-1.5 group outline-none"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600 shadow-sm group-hover:scale-105 transition-transform">
+                    <span className="material-symbols-outlined text-xl">location_on</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600">Location</span>
+                </button>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={() => setIsAttachmentMenuOpen(false)}
+                className="mt-5 w-full rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+
             <header className="h-[70px] border-b border-slate-200 px-6 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
                 <Avatar src={activeConversation.counterpartAvatar} name={activeConversation.counterpartName} className="w-10 h-10" />
@@ -385,11 +506,18 @@ export default function CustomerMessagesPage() {
 
             <footer className="p-4 bg-white border-t border-slate-200">
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 px-3">
-                <button className="p-2 text-slate-500 hover:text-[#2F4DA0] transition-colors" type="button">
-                  <span className="material-symbols-outlined">attach_file</span>
+                
+                {/* 📎 Paperclip Trigger Menu Button */}
+                <button 
+                  className={`p-2 transition-colors ${isAttachmentMenuOpen ? 'text-[#2F4DA0]' : 'text-slate-500 hover:text-[#2F4DA0]'}`} 
+                  type="button"
+                  onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
+                >
+                  <span className="material-symbols-outlined transform rotate-45 block">attach_file</span>
                 </button>
+
                 <input
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 placeholder:text-slate-400"
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 placeholder:text-slate-400 outline-none"
                   placeholder="Type a message..."
                   type="text"
                   value={draftMessage}
@@ -413,3 +541,26 @@ export default function CustomerMessagesPage() {
   );
 }
 
+// Subcomponent Row remains unmodified
+function ConversationRow({ active, image, name, time, service, preview, unread, onClick }: any) {
+  return (
+    <button className={`px-6 py-4 cursor-pointer border-b border-slate-100 w-full text-left ${active ? 'bg-white border-l-4 border-l-[#2F4DA0]' : 'hover:bg-slate-100'}`} onClick={onClick} type="button">
+      <div className="flex gap-3">
+        <div className="relative shrink-0">
+          <Avatar src={image} name={name} className="w-12 h-12" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+            <h3 className="font-bold text-slate-900 truncate">{name}</h3>
+            <span className="text-[10px] text-slate-400 font-medium">{time}</span>
+          </div>
+          <p className={`text-xs font-semibold truncate mb-1 ${active ? 'text-[#2F4DA0]' : 'text-slate-600'}`}>{service}</p>
+          <div className="flex justify-between items-center gap-2">
+            <p className="text-xs truncate text-slate-500">{preview}</p>
+            {unread ? <span className="bg-[#2F4DA0] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">{unread}</span> : null}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
