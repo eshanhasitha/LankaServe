@@ -19,12 +19,21 @@ export default function ProviderLayout() {
   const [notificationUnread, setNotificationUnread] = useState(0);
   const [jobRequestCount, setJobRequestCount] = useState(0);
   const [myJobCount, setMyJobCount] = useState(0);
+  
+  // 🎯 Mobile Navigation State Tracker
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const [badgeSummary, setBadgeSummary] = useState({
     currentLevel: 'Provider',
     rankLabel: '',
     rankPosition: 0,
     totalProviders: 0,
   });
+
+  // Automatically close mobile menu when a navigation link is clicked
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   async function onLogout() {
     await logoutCurrentUser();
@@ -195,18 +204,37 @@ export default function ProviderLayout() {
   const isHelpCenterRoute = location.pathname.includes('/provider/help-center');
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-slate-900">
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-slate-200 bg-white">
-        <div className="flex h-[70px] items-center border-b border-slate-100 px-6">
+    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 flex">
+      
+      {/* 🎯 Backdrop Overlay Layer: Tapping outside the sidebar panel closes it instantly */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-[2000] md:hidden transition-opacity duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* 📁 Unified Responsive Sidebar Viewport Container */}
+      <aside className={`fixed inset-y-0 left-0 z-[2050] flex w-[260px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex h-[70px] items-center justify-between border-b border-slate-100 px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1E3A8A]">
               <span className="material-symbols-outlined text-white text-3xl">handshake</span>
             </div>
             <span className="text-xl font-bold tracking-tight text-[#2F4DA0]">LankaServe</span>
           </div>
+
+          {/* 🎯 Mobile "X" Close Button */}
+          <button 
+            type="button" 
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <span className="material-symbols-outlined text-2xl">close</span>
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4 py-6">
+        <nav className="flex-1 space-y-1 px-4 py-6 overflow-y-auto">
           {links.map((item) => (
             <NavLink
               key={item.to}
@@ -266,24 +294,35 @@ export default function ProviderLayout() {
         </div>
       </aside>
 
-      <main className={`ml-[260px] ${isMessagesRoute ? 'h-screen bg-white' : 'min-h-screen bg-[#F3F4F6]'}`}>
+      {/* 💻 Adjusted Layout Margin System (Flex-1 avoids grid compressing) */}
+      <div className="flex-1 flex flex-col md:pl-[260px] min-w-0 w-full">
         {!isMessagesRoute ? (
-          <header className="sticky top-0 z-[1200] flex h-[70px] items-center justify-between border-b border-slate-200 bg-white px-8">
-            {isHelpCenterRoute ? (
-              <div className="invisible w-96" />
-            ) : (
-              <div className="flex w-96 items-center gap-2 rounded-full border border-transparent bg-slate-50 px-3 transition-all focus-within:border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F4DA0]">
-                <span className="material-symbols-outlined shrink-0 text-xl text-slate-400">search</span>
-                <input
-                  className="flex-1 border-0 bg-transparent py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none"
-                  placeholder={headerPlaceholder}
-                  type="text"
-                />
-              </div>
-            )}
+          <header className="sticky top-0 z-[1000] flex h-[70px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-8">
+            <div className="flex items-center gap-4 flex-1 mr-4">
+              
+              {/* 🎯 Mobile Hamburger Icon Trigger Button */}
+              <button 
+                type="button" 
+                className="p-2 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 md:hidden"
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <span className="material-symbols-outlined text-2xl flex items-center">menu</span>
+              </button>
 
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-1 text-sm font-semibold text-slate-600">
+              {!isHelpCenterRoute && (
+                <div className="hidden sm:flex w-full max-w-md items-center gap-2 rounded-full border border-transparent bg-slate-50 px-3 transition-all focus-within:border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F4DA0]">
+                  <span className="material-symbols-outlined shrink-0 text-xl text-slate-400">search</span>
+                  <input
+                    className="flex-1 border-0 bg-transparent py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none"
+                    placeholder={headerPlaceholder}
+                    type="text"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+              <div className="hidden lg:flex items-center gap-1 text-sm font-semibold text-slate-600">
                 <span className="cursor-pointer hover:text-[#2F4DA0]">EN</span>
                 <span className="text-slate-300">|</span>
                 <span className="cursor-pointer text-slate-400 hover:text-[#2F4DA0]">SI</span>
@@ -312,9 +351,10 @@ export default function ProviderLayout() {
           </header>
         ) : null}
 
-        <Outlet />
-      </main>
+        <main className={`flex-1 min-w-0 ${isMessagesRoute ? 'h-screen bg-white' : 'p-4 sm:p-6 lg:p-8 bg-[#F3F4F6]'}`}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
-
