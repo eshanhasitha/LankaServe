@@ -46,6 +46,12 @@ export default function ProviderMessagesPage() {
   const [draftMessage, setDraftMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // 🎯 UI & Hardware Action System State refs
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [error, setError] = useState('');
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   const routeConversation = useMemo(() => {
     const counterpartId = location.state?.customerId;
     if (!counterpartId || !user?._id) return null;
@@ -252,8 +258,63 @@ export default function ProviderMessagesPage() {
     }
   }
 
+  // 📱 Live Hardware Handlers
+  function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+    setDraftMessage(`📸 Attached Image: ${selectedFile.name}`);
+  }
+
+  function handleShareLocation() {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your current browser application.');
+      setIsAttachmentMenuOpen(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        setDraftMessage(`📍 Live Location Pin: ${mapsUrl}`);
+        setIsAttachmentMenuOpen(false);
+      },
+      () => {
+        alert('Unable to fetch your precise GPS device coordinates. Check tracking permissions.');
+        setIsAttachmentMenuOpen(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  }
+
   return (
-    <div className="h-screen bg-white overflow-hidden flex">
+    <div className="h-screen bg-white overflow-hidden flex relative">
+      
+      {/* 📁 Hidden Real Interactive Inputs Pipeline System */}
+      <input 
+        type="file" 
+        ref={galleryInputRef} 
+        onChange={handleFileSelection} 
+        accept="image/*" 
+        className="hidden" 
+      />
+      <input 
+        type="file" 
+        ref={cameraInputRef} 
+        onChange={handleFileSelection} 
+        accept="image/*" 
+        capture="environment" 
+        className="hidden" 
+      />
+
+      {/* 🔮 WhatsApp Overlay Tint Layer */}
+      {isAttachmentMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-[9999] transition-opacity duration-300"
+          onClick={() => setIsAttachmentMenuOpen(false)}
+        />
+      )}
+
       <section className="w-[390px] bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-200 bg-white">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Messages</h2>
@@ -303,7 +364,65 @@ export default function ProviderMessagesPage() {
         </div>
       </section>
 
-      <section className="flex-1 bg-[#F3F4F6] flex flex-col min-w-0">
+      <section className="flex-1 bg-[#F3F4F6] flex flex-col min-w-0 relative">
+        
+        {/* 📱 WhatsApp-Style Responsive Slide-Up / Floating Action Sheet */}
+        <div 
+          className={`fixed bottom-0 left-0 right-0 z-[10000] rounded-t-3xl bg-white p-6 shadow-2xl transition-all duration-300 ease-in-out 
+            md:absolute md:bottom-24 md:left-6 md:right-auto md:w-[320px] md:rounded-2xl md:border md:border-slate-200
+            ${isAttachmentMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-10 opacity-0 pointer-events-none md:translate-y-4'}`}
+        >
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 md:hidden" />
+          <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-5">Share Attachment</p>
+          
+          {/* 🔘 Context Icon Grid */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {/* Gallery Option */}
+            <button 
+              type="button" 
+              onClick={() => { galleryInputRef.current?.click(); setIsAttachmentMenuOpen(false); }}
+              className="flex flex-col items-center gap-1.5 group outline-none"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600 shadow-sm group-hover:scale-105 transition-transform">
+                <span className="material-symbols-outlined text-xl">image</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-600">Gallery</span>
+            </button>
+
+            {/* Camera Option */}
+            <button 
+              type="button" 
+              onClick={() => { cameraInputRef.current?.click(); setIsAttachmentMenuOpen(false); }}
+              className="flex flex-col items-center gap-1.5 group outline-none"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100 text-pink-600 shadow-sm group-hover:scale-105 transition-transform">
+                <span className="material-symbols-outlined text-xl">photo_camera</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-600">Camera</span>
+            </button>
+
+            {/* Location Option */}
+            <button 
+              type="button" 
+              onClick={handleShareLocation}
+              className="flex flex-col items-center gap-1.5 group outline-none"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600 shadow-sm group-hover:scale-105 transition-transform">
+                <span className="material-symbols-outlined text-xl">location_on</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-600">Location</span>
+            </button>
+          </div>
+
+          <button 
+            type="button" 
+            onClick={() => setIsAttachmentMenuOpen(false)}
+            className="mt-5 w-full rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+
         <header className="h-[74px] px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <Avatar src={activeConversation?.counterpartAvatar} name={activeConversation?.counterpartName} className="w-10 h-10" />
@@ -355,9 +474,16 @@ export default function ProviderMessagesPage() {
 
         <footer className="p-6 bg-[#F3F4F6] border-t border-slate-200">
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-300 rounded-3xl px-4 py-2">
-            <button className="text-slate-400 hover:text-slate-600" type="button">
-              <span className="material-symbols-outlined">attach_file</span>
+            
+            {/* 🎯 Interactive Paperclip Trigger */}
+            <button 
+              className={`hover:text-slate-600 transition-colors ${isAttachmentMenuOpen ? 'text-[#2F4DA0]' : 'text-slate-400'}`} 
+              type="button"
+              onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)}
+            >
+              <span className="material-symbols-outlined transform rotate-45 block">attach_file</span>
             </button>
+
             <input className="flex-1 bg-transparent text-sm border-0 outline-none placeholder:text-slate-400" placeholder="Type a message..." type="text" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && onSend()} />
             <button className="bg-[#2F4DA0] text-white px-7 py-2 rounded-xl text-sm font-bold hover:bg-blue-800 transition-colors flex items-center gap-2" type="button" onClick={onSend}>
               Send
@@ -392,4 +518,3 @@ function ConversationRow({ active, image, name, time, service, preview, unread, 
     </button>
   );
 }
-
