@@ -52,7 +52,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState('customer');
   const [serviceCategory, setServiceCategory] = useState('');
   const [serviceArea, setServiceArea] = useState('');
-  const [providerLocation, setProviderLocation] = useState(DEFAULT_PROVIDER_LOCATION);
+  const [providerLocation, setProviderLocation] = useState<any>(null);
   const [locationSuggestions, setLocationSuggestions] = useState(FALLBACK_CITIES);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -127,7 +127,7 @@ export default function RegisterPage() {
   }
 
   const providerProfile = useMemo(() => (
-    role === 'provider'
+    role === 'provider' && providerLocation
       ? {
           categories: serviceCategory ? [serviceCategory] : ['Other'],
           bio: serviceArea.trim(),
@@ -136,11 +136,12 @@ export default function RegisterPage() {
           location: { type: 'Point', coordinates: providerLocation.coordinates },
         }
       : undefined
-  ), [providerLocation.coordinates, role, serviceArea, serviceCategory]);
+  ), [providerLocation, role, serviceArea, serviceCategory]);
 
   async function onSubmit(event) {
     event.preventDefault();
-    setPasswordMismatch(false); // Reset visual error borders before check
+    if (busy) return; 
+    setPasswordMismatch(false); 
     setBusy(true);
     try {
       if (!fullName.trim()) throw new Error(copy.register.errors.fullName);
@@ -151,7 +152,6 @@ export default function RegisterPage() {
       if (!email.trim().endsWith('@gmail.com')) throw new Error(copy.register.errors.gmail);
       if (!phoneNumber.trim()) throw new Error(copy.register.errors.phone);
       
-      // 📦 Fixed Address Bug: Intercept missing address immediately!
       if (!address.trim()) throw new Error(copy.register.errors.address);
       
       if (!password) {
@@ -161,18 +161,19 @@ export default function RegisterPage() {
         throw new Error('Password must be at least 6 characters long.');
       }
       if (password !== confirmPassword) {
-        setPasswordMismatch(true); // 🔴 Trigger red border styles dynamically
+        setPasswordMismatch(true); 
         throw new Error(copy.register.errors.passwordMatch);
       }
       
       if (!agreeTerms) throw new Error(copy.register.errors.terms);
       if (role === 'provider' && !serviceCategory) throw new Error(copy.register.errors.category);
       if (role === 'provider' && !serviceArea.trim()) throw new Error(copy.register.errors.serviceArea);
-
+      if (role === 'provider' && !providerLocation) throw new Error('Please select a valid location from the suggestions dropdown.');
+      
       const token = await registerWithEmailPassword(email.trim(), password, fullName.trim());
       await registerWithToken(token, role, providerProfile);
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
-    } catch (submitError) {
+    } catch (submitError: any) {
       notifyError(submitError.message || copy.register.errors.failed);
     } finally {
       setBusy(false);
@@ -180,6 +181,7 @@ export default function RegisterPage() {
   }
 
   async function onGoogleSignup() {
+    if (busy) return; 
     setBusy(true);
     try {
       if (!agreeTerms) throw new Error(copy.register.errors.terms);
@@ -192,7 +194,6 @@ export default function RegisterPage() {
       }
       navigate(role === 'provider' ? '/provider/dashboard' : '/customer/dashboard', { replace: true });
     } catch (signupError: any) {
-      // 🎯 Bug #5 Fix: Silently return if the user closes the Google window manually
       if (signupError?.code === 'auth/popup-closed-by-user' || 
           signupError?.message?.includes('popup-closed-by-user')) {
         return; 
@@ -206,9 +207,7 @@ export default function RegisterPage() {
 
   return (
     <section className="min-h-screen flex flex-col bg-[#F0F2F5] font-['Inter'] p-4">
-      {/* Top Controls Container: Back Button & Language Selection */}
       <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-center pointer-events-none">
-        {/* Styled Tailwind Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-full shadow-sm text-xs font-semibold text-slate-600 hover:text-[#1E3A8A] hover:bg-slate-50 transition-all active:scale-95"
@@ -218,7 +217,6 @@ export default function RegisterPage() {
           Back
         </button>
 
-        {/* Language Selection Toggles */}
         <div className="pointer-events-auto flex items-center overflow-hidden rounded-full bg-white px-1 py-1 border border-slate-300 shadow-sm">
           {languageOptions.map((option, index) => (
             <div key={option.code} className="flex items-center">
@@ -465,28 +463,39 @@ export default function RegisterPage() {
                   </div>
                   <p className="mt-1.5 text-xs text-[#1E3A8A] flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">info</span>
-                    {copy.register.customersWillFindYouNear} {providerLocation.district}.
+                    {copy.register.customersWillFindYouNear}{' '}
+                    {providerLocation?.district || DEFAULT_PROVIDER_LOCATION.district}.
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <input
-                className="w-4 h-4 rounded border-slate-300 text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
+                className="w-4 h-4 mt-0.5 rounded border-slate-300 text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
                 id="terms"
                 type="checkbox"
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
               />
-              <label className="text-xs text-[#6B7280] leading-relaxed cursor-pointer" htmlFor="terms">
-                {role === 'provider' ? copy.register.providerTermsPrefix : copy.register.customerTermsPrefix}{' '}
-                <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">
+              <div className="text-xs text-[#6B7280] leading-relaxed">
+                <span>
+                  {role === 'provider' ? copy.register.providerTermsPrefix : copy.register.customerTermsPrefix}{' '}
+                </span>
+                <button 
+                  className="text-[#1E3A8A] font-semibold hover:underline inline-block" 
+                  type="button"
+                >
                   {role === 'provider' ? copy.common.serviceTerms : copy.common.termsOfService}
                 </button>{' '}
-                {copy.register.and}{' '}
-                <button className="text-[#1E3A8A] font-semibold hover:underline" type="button">{copy.common.privacyPolicy}</button>.
-              </label>
+                <span>{copy.register.and}</span>{' '}
+                <button 
+                  className="text-[#1E3A8A] font-semibold hover:underline inline-block" 
+                  type="button"
+                >
+                  {copy.common.privacyPolicy}
+                </button>.
+              </div>
             </div>
 
             <button
