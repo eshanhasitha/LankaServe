@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   categoryImages,
   getInitialLandingLanguage,
@@ -45,9 +45,14 @@ const whatsappNumber = '+94774506950';
 const whatsappUrl = `https://wa.me/${whatsappNumber.replace('+', '')}`;
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [language, setLanguage] = useState<LanguageCode>(getInitialLandingLanguage);
   const [languageOpen, setLanguageOpen] = useState(false);
   const t = landingCopy[language];
+
+  // 🎯 Search Input and Dropdown Menu State Handlers
+  const [query, setQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(languageStorageKey, language);
@@ -58,6 +63,15 @@ export default function LandingPage() {
     setLanguage(nextLanguage);
     setLanguageOpen(false);
   }
+
+  // 🔍 Filter matching services based on the active language dictionary data array
+  const filteredServices = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return [];
+    return t.categories.items.filter((item) =>
+      item.title.toLowerCase().includes(term)
+    );
+  }, [query, t.categories.items]);
 
   return (
     <div className="scroll-smooth bg-white text-slate-900">
@@ -125,19 +139,74 @@ export default function LandingPage() {
               <p className="text-lg text-slate-600 max-w-lg">
                 {t.hero.summary}
               </p>
-              <div className="relative max-w-md group flex items-center">
-                <span className="absolute left-4 flex items-center pointer-events-none z-10 text-slate-500 group-focus-within:text-blue-900">
-                  <span className="material-symbols-outlined text-2xl">search</span>
-                </span>
-                <input className="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none" placeholder={t.hero.search} type="text" />
+              
+              {/* 🔍 Interactive Search System Input Container */}
+              <div className="relative max-w-md group flex flex-col z-30">
+                <div className="relative w-full flex items-center">
+                  <span className="absolute left-4 flex items-center pointer-events-none z-10 text-slate-500 group-focus-within:text-blue-900">
+                    <span className="material-symbols-outlined text-2xl">search</span>
+                  </span>
+                  <input 
+                    className="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent outline-none text-sm font-medium" 
+                    placeholder={t.hero.search} 
+                    type="text" 
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                  />
+                </div>
+
+                {/* 🎯 Real-Time Autocomplete Category Suggestion Popup overlay */}
+                {showDropdown && query.trim() && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-60 overflow-y-auto">
+                      {filteredServices.length > 0 ? (
+                        filteredServices.map((category) => (
+                          <button
+                            key={category.title}
+                            type="button"
+                            onClick={() => navigate('/register?role=customer')} // 🚀 Leads guests directly to customer sign up
+                            className="w-full text-left px-5 py-3.5 text-sm font-bold text-slate-700 border-b border-slate-100 last:border-0 hover:bg-blue-50 hover:text-blue-900 transition-colors flex items-center justify-between"
+                          >
+                            <span>{category.title}</span>
+                            <span className="material-symbols-outlined text-slate-400 text-sm">arrow_forward_ios</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-xs text-slate-400 font-medium italic text-center">
+                          No matching services available.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
+
               <div className="flex flex-wrap gap-4">
-                <button className="flex items-center gap-2 px-8 py-4 bg-blue-900 text-white font-bold rounded-xl hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/20" type="button">
+                <button 
+                  className="flex items-center gap-2 px-8 py-4 bg-blue-900 text-white font-bold rounded-xl hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/20" 
+                  type="button"
+                  onClick={() => {
+                    if (query.trim()) {
+                      setShowDropdown(true);
+                    } else {
+                      navigate('/register?role=customer'); // 🚀 Default to customer register
+                    }
+                  }}
+                >
                   {t.hero.findServices} <span className="material-symbols-outlined">arrow_forward</span>
                 </button>
-                <Link className="flex items-center gap-2 px-8 py-4 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20" to="/register">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/register?role=provider')} // 🚀 Default to provider register
+                  className="flex items-center gap-2 px-8 py-4 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20"
+                >
                   {t.hero.becomeProvider} <span className="material-symbols-outlined">person_add</span>
-                </Link>
+                </button>
               </div>
             </div>
             <div className="relative">
@@ -177,9 +246,13 @@ export default function LandingPage() {
                 <div className="p-8">
                   <h3 className="text-xl font-bold mb-3">{category.title}</h3>
                   <p className="text-slate-600 mb-6 leading-relaxed">{category.description}</p>
-                  <a className="inline-flex items-center font-bold text-blue-900 group-hover:translate-x-2 transition-transform" href="#categories">
+                  <button 
+                    type="button"
+                    onClick={() => navigate('/register?role=customer')} // 🚀 Category views route to customer sign up
+                    className="inline-flex items-center font-bold text-blue-900 group-hover:translate-x-2 transition-transform bg-transparent border-none cursor-pointer outline-none"
+                  >
                     {t.categories.viewMore} <span className="material-symbols-outlined ml-1">arrow_forward</span>
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
@@ -216,7 +289,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white" id="qr-security">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
@@ -261,7 +334,11 @@ export default function LandingPage() {
               <p className="text-lg text-slate-600 mb-8 leading-relaxed">
                 {t.approval.summary}
               </p>
-              <button className="font-bold text-blue-900 flex items-center hover:gap-2 transition-all" type="button">
+              <button 
+                className="font-bold text-blue-900 flex items-center hover:gap-2 transition-all bg-transparent border-none outline-none cursor-pointer" 
+                type="button"
+                onClick={() => navigate('/register?role=customer')}
+              >
                 {t.approval.learn} <span className="material-symbols-outlined ml-2">arrow_forward</span>
               </button>
             </div>
@@ -306,7 +383,7 @@ export default function LandingPage() {
                 <div className="flex text-yellow-400 mb-6">
                   <span className="material-symbols-outlined">star</span><span className="material-symbols-outlined">star</span><span className="material-symbols-outlined">star</span><span className="material-symbols-outlined">star</span><span className="material-symbols-outlined">star</span>
                 </div>
-                <p className="text-slate-700 italic mb-8 leading-relaxed">&quot;{testimonial.quote}&quot;</p>
+                <p className="text-slate-700 italic mb-8 leading-relaxed">"{testimonial.quote}"</p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-slate-200 rounded-full overflow-hidden">
                     <img alt={testimonial.name} className="w-full h-full object-cover" src={testimonialImages[index]} />
@@ -334,19 +411,19 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold text-lg mb-6">{t.footer.quickLinks}</h4>
               <ul className="space-y-4 text-blue-100">
-                <li><Link className="hover:text-white transition-colors" to="/find-a-pro">{t.footer.links[0]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/become-a-pro">{t.footer.links[1]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/how-it-works">{t.footer.links[2]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/service-areas">{t.footer.links[3]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register?role=customer">{t.footer.links[0]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register?role=provider">{t.footer.links[1]}</Link></li>
+                <li><a className="hover:text-white transition-colors" href="#how-it-works">{t.footer.links[2]}</a></li>
+                <li><Link className="hover:text-white transition-colors" to="/register?role=customer">{t.footer.links[3]}</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-lg mb-6">{t.footer.support}</h4>
               <ul className="space-y-4 text-blue-100">
-                <li><Link className="hover:text-white transition-colors" to="/help-center">{t.footer.supportLinks[0]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/safety-guide">{t.footer.supportLinks[1]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/contact">{t.footer.supportLinks[2]}</Link></li>
-                <li><Link className="hover:text-white transition-colors" to="/terms">{t.footer.supportLinks[3]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register">{t.footer.supportLinks[0]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register">{t.footer.supportLinks[1]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register">{t.footer.supportLinks[2]}</Link></li>
+                <li><Link className="hover:text-white transition-colors" to="/register">{t.footer.supportLinks[3]}</Link></li>
               </ul>
             </div>
             <div className="lg:col-span-1">
