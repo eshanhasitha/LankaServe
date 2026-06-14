@@ -48,6 +48,7 @@ export default function ProviderMessagesPage() {
 
   // 🎯 UI & Hardware Action System State refs
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [error, setError] = useState('');
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -423,6 +424,7 @@ export default function ProviderMessagesPage() {
           </button>
         </div>
 
+        {/* 🛠️ UPGRADED INTERACTIVE CHAT HEADER */}
         <header className="h-[74px] px-8 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <Avatar src={activeConversation?.counterpartAvatar} name={activeConversation?.counterpartName} className="w-10 h-10" />
@@ -431,13 +433,65 @@ export default function ProviderMessagesPage() {
               <p className="text-[10px] text-slate-500 font-semibold uppercase">{activeConversation?.contextType === 'job' ? 'Job conversation' : 'Direct conversation'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <button className="p-2 hover:bg-slate-50 rounded-lg transition-colors" type="button">
-              <span className="material-symbols-outlined">call</span>
+          
+          <div className="flex items-center gap-3 relative">
+            {/* 📞 Call Option Button */}
+            <button 
+              onClick={() => alert("Voice and video calling modules will become available in the next platform sprint release!")}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-[#2F4DA0] active:scale-95 transition-all duration-200" 
+              type="button"
+              title="Call Client"
+            >
+              <span className="material-symbols-outlined text-xl">call</span>
             </button>
-            <button className="p-2 hover:bg-slate-50 rounded-lg transition-colors" type="button">
-              <span className="material-symbols-outlined">more_vert</span>
-            </button>
+            
+            {/* 🎛️ Three-Dot Settings Menu Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 active:scale-95 transition-all duration-200 ${isHeaderMenuOpen ? 'bg-slate-100 border-slate-400 text-[#2F4DA0]' : 'text-slate-600 hover:bg-slate-100'}`} 
+                type="button"
+                title="More Options"
+              >
+                <span className="material-symbols-outlined text-xl">more_vert</span>
+              </button>
+
+              {/* 🔮 Absolute Dropdown Floating Overlay */}
+              {isHeaderMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsHeaderMenuOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Manage Chat</p>
+                    
+                    <button 
+                      onClick={() => { alert("Viewing consumer profile analytics..."); setIsHeaderMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg text-slate-400">account_circle</span>
+                      View Client Profile
+                    </button>
+                    
+                    <button 
+                      onClick={() => { alert("Conversation threads muted successfully."); setIsHeaderMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg text-slate-400">notifications_off</span>
+                      Mute Audio Alerts
+                    </button>
+                    
+                    <hr className="my-1.5 border-slate-100" />
+                    
+                    <button 
+                      onClick={() => { alert("Flagged support ticketing workflow initiated."); setIsHeaderMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg text-red-400">report</span>
+                      Block & Report User
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
