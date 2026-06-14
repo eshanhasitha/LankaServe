@@ -184,7 +184,9 @@ export default function ProviderJobDetailsPage() {
 
   const customerName = job?.customerId?.name || 'Customer';
   const customerImage = job?.customerId?.profileImage || '';
-  const customerLocation = [job?.customerId?.city, job?.customerId?.district].filter(Boolean).join(', ');
+  const customerLocation =
+    locationInfo?.shortLabel ||
+    [job?.customerId?.city, job?.customerId?.district].filter(Boolean).join(', ');
   const canStartJob = Boolean(job && job.status === 'arrived');
   const canConfirmCompletion = Boolean(job && (job.status === 'ongoing' || job.status === 'completed') && !job.providerCompletion);
   const canFinalize = Boolean(job?.providerCompletion && job?.customerCompletion && job?.status !== 'completed' && job?.status !== 'paid');

@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
+import { reverseGeocodeLocation } from '../../lib/location.ts';
 import Skeleton from '../../components/Skeleton.tsx';
 import JobListCard from '../../components/JobListCard.tsx';
 
@@ -56,6 +57,7 @@ function statusLine(job, badgeLabel) {
 }
 
 function formatLocation(job) {
+  if (job?.locationText) return job.locationText;
   const customer = job?.customerId || {};
   return [customer.city, customer.district].filter(Boolean).join(', ') || 'Sri Lanka';
 }
@@ -113,7 +115,21 @@ export default function ProviderMyJobsPage() {
           { headers }
         );
         if (!mounted) return;
-        setJobs(Array.isArray(response?.data) ? response.data : []);
+        const items = Array.isArray(response?.data) ? response.data : [];
+        const enrichedItems = await Promise.all(
+          items.map(async (job) => {
+            const locationInfo = await reverseGeocodeLocation(job.location);
+            const customer = typeof job.customerId === 'object' && job.customerId ? job.customerId : {};
+            return {
+              ...job,
+              locationText: locationInfo.shortLabel,
+              customerName: customer.name || 'Customer',
+              customerImage: customer.profileImage || '',
+            };
+          })
+        );
+        if (!mounted) return;
+        setJobs(enrichedItems);
         setPagination({
           page: Number(response?.pagination?.page || 1),
           total: Number(response?.pagination?.total || 0),
@@ -196,10 +212,10 @@ export default function ProviderMyJobsPage() {
               infoBlocks={[
                 {
                   type: 'avatar',
-                  image: job?.customerId?.profileImage,
-                  name: job?.customerId?.name || 'Customer',
+                  image: job.customerImage,
+                  name: job.customerName || 'Customer',
                   label: 'Customer',
-                  value: job?.customerId?.name || 'Customer',
+                  value: job.customerName || 'Customer',
                 },
                 {
                   type: 'icon',

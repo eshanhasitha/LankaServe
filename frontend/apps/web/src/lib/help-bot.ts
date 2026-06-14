@@ -179,10 +179,10 @@ function resolveIntent(text, role) {
 
   if (containsAny(text, ['human', 'agent', 'agents', 'support team', 'support', 'ticket', 'tickets', 'representative'])) {
     return {
-      answer: 'Use the Contact Support form on this page to create a ticket. Include your job ID and key details so the team can respond quickly.',
+      answer: 'You can create a support ticket or open a direct support chat. We will keep you with the same assigned admin while that request is active.',
       actions: [
+        action('Chat with Admin', `${routes.messages}?support=1`),
         action('Go to Help Center', routes.helpCenter),
-        action('Open My Jobs', routes.myJobs),
       ],
     };
   }
