@@ -2,19 +2,10 @@
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
+import { formatRelativeTime } from '../../lib/date-time.ts';
 import Skeleton from '../../components/Skeleton.tsx';
 
 const tabs = ['All', 'Jobs', 'Payments', 'Reviews', 'System'];
-
-function timeAgo(iso) {
-  if (!iso) return 'Just now';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.max(1, Math.floor(diff / 60000));
-  if (mins < 60) return `${mins} mins ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
-  return 'Yesterday';
-}
 
 function iconForType(type) {
   if (type === 'job') return { icon: 'assignment', iconWrap: 'bg-blue-50 text-blue-600' };
@@ -161,7 +152,7 @@ export default function CustomerNotificationsPage() {
                     ) : null}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400">{timeAgo(item.createdAt)}</span>
+                    <span className="text-xs text-slate-400">{item.timeLabel || formatRelativeTime(item.eventAt || item.createdAt || item.updatedAt)}</span>
                     {!item.isRead ? <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" /> : null}
                   </div>
                 </div>
