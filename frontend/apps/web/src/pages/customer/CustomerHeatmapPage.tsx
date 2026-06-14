@@ -1,8 +1,8 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from 'react-leaflet';
 import Avatar from '../../components/Avatar.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
@@ -40,6 +40,19 @@ const ratingOptions = [
   { label: '5.0', value: 5 },
 ];
 
+const heatColorStops = [
+  { threshold: 0.1, color: '#38bdf8', opacity: 0.22 },
+  { threshold: 0.25, color: '#22c55e', opacity: 0.28 },
+  { threshold: 0.45, color: '#facc15', opacity: 0.34 },
+  { threshold: 0.65, color: '#f97316', opacity: 0.4 },
+  { threshold: 0.82, color: '#ef4444', opacity: 0.46 },
+  { threshold: 1, color: '#b91c1c', opacity: 0.52 },
+];
+
+function heatStyle(value: number) {
+  const normalized = Math.max(0, Math.min(1, value));
+  return heatColorStops.find((stop) => normalized <= stop.threshold) || heatColorStops[heatColorStops.length - 1];
+}
 const providerPin = (online) =>
   L.divIcon({
     className: 'customer-heatmap-provider-pin',
@@ -247,59 +260,72 @@ export default function CustomerHeatmapPage() {
 
   const visibleProviders = filteredProviders;
   const mapCenter = customerCoords || DEFAULT_CENTER;
-  const mapPoints = useMemo(() => {
-    const providerPoints = visibleProviders
+  const heatPoints = useMemo(() => {
+    return visibleProviders
       .map((provider) => normalizeLngLat(provider?.coordinates, null))
       .filter((coords): coords is LngLat => Boolean(coords && isWithinSriLankaBounds(coords)));
-    const customerPoint = normalizeLngLat(customerCoords, DEFAULT_CENTER);
-    return [customerPoint, ...providerPoints];
-  }, [customerCoords, visibleProviders]);
-  const heatZones = useMemo(() => {
-    if (!visibleProviders.length) return [];
-
-    const gridSize = 0.02;
-    const buckets = new Map();
-
-    visibleProviders.forEach((provider) => {
-      const coords = provider?.coordinates;
-      if (!Array.isArray(coords) || coords.length !== 2) return;
-      const [lng, lat] = coords;
-      const latKey = Math.round(lat / gridSize);
-      const lngKey = Math.round(lng / gridSize);
-      const key = `${latKey}:${lngKey}`;
-      const bucket = buckets.get(key) || {
-        latSum: 0,
-        lngSum: 0,
-        count: 0,
-        weight: 0,
-      };
-
-      bucket.latSum += lat;
-      bucket.lngSum += lng;
-      bucket.count += 1;
-      bucket.weight += Math.max(0.5, Number(provider.rating || 0) / 5);
-      buckets.set(key, bucket);
-    });
-
-    const zones = Array.from(buckets.values()).map((bucket) => ({
-      center: [bucket.latSum / bucket.count, bucket.lngSum / bucket.count] as LngLat,
-      count: bucket.count,
-      weight: bucket.weight,
-    }));
-
-    const maxWeight = Math.max(1, ...zones.map((zone) => zone.weight));
-
-    return zones.map((zone) => {
-      const normalized = zone.weight / maxWeight;
-      return {
-        ...zone,
-        normalized,
-        radius: 450 + normalized * 1400,
-      };
-    });
   }, [visibleProviders]);
 
-  return (
+  const mapPoints = useMemo(() => {
+    const customerPoint = normalizeLngLat(customerCoords, DEFAULT_CENTER);
+    return [customerPoint, ...heatPoints];
+  }, [customerCoords, heatPoints]);
+
+  const heatCells = useMemo(() => {
+    if (!visibleProviders.length) return [];
+
+    const points = visibleProviders
+      .map((provider) => normalizeLngLat(provider?.coordinates, null))
+      .filter((coords): coords is LngLat => Boolean(coords && isWithinSriLankaBounds(coords)));
+
+    if (!points.length) return [];
+
+    const latValues = points.map(([, lat]) => lat);
+    const lngValues = points.map(([lng]) => lng);
+    const latPadding = 0.18;
+    const lngPadding = 0.18;
+    const minLat = Math.max(SRI_LANKA_BOUNDS.minLat, Math.min(...latValues) - latPadding);
+    const maxLat = Math.min(SRI_LANKA_BOUNDS.maxLat, Math.max(...latValues) + latPadding);
+    const minLng = Math.max(SRI_LANKA_BOUNDS.minLng, Math.min(...lngValues) - lngPadding);
+    const maxLng = Math.min(SRI_LANKA_BOUNDS.maxLng, Math.max(...lngValues) + lngPadding);
+    const rows = 34;
+    const cols = 34;
+    const latStep = (maxLat - minLat) / rows;
+    const lngStep = (maxLng - minLng) / cols;
+    const spread = Math.max(latStep, lngStep) * 5.5;
+    const cells = [];
+    let maxDensity = 0;
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const lat = minLat + latStep * (row + 0.5);
+        const lng = minLng + lngStep * (col + 0.5);
+        const density = points.reduce((sum, [pointLng, pointLat]) => {
+          const lngDistance = (lng - pointLng) * Math.cos((lat * Math.PI) / 180);
+          const latDistance = lat - pointLat;
+          const distanceSq = lngDistance * lngDistance + latDistance * latDistance;
+          return sum + Math.exp(-distanceSq / (2 * spread * spread));
+        }, 0);
+
+        if (density > maxDensity) maxDensity = density;
+        cells.push({
+          id: `${row}-${col}`,
+          bounds: [
+            [minLat + latStep * row, minLng + lngStep * col],
+            [minLat + latStep * row, minLng + lngStep * (col + 1)],
+            [minLat + latStep * (row + 1), minLng + lngStep * (col + 1)],
+            [minLat + latStep * (row + 1), minLng + lngStep * col],
+          ],
+          density,
+        });
+      }
+    }
+
+    return cells
+      .map((cell) => ({ ...cell, normalized: maxDensity ? cell.density / maxDensity : 0 }))
+      .filter((cell) => cell.normalized >= 0.08);
+  }, [visibleProviders]);
+return (
     <div className="mx-auto max-w-[1440px] space-y-4 p-4 sm:space-y-6 sm:p-6 lg:p-8">
       <header>
         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Service Heatmap</h1>
@@ -469,19 +495,23 @@ export default function CustomerHeatmapPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <FitMapToPoints center={mapCenter} points={mapPoints} />
-                {heatZones.map((zone, index) => (
-                  <Circle
-                    key={`heat-zone-${index}`}
-                    center={zone.center}
-                    radius={zone.radius}
-                    pathOptions={{
-                      color: '#ef4444',
-                      weight: 1,
-                      fillColor: '#ef4444',
-                      fillOpacity: 0.12 + zone.normalized * 0.28,
-                    }}
-                  />
-                ))}
+                                {heatCells.map((cell) => {
+                  const style = heatStyle(cell.normalized);
+                  return (
+                    <Polygon
+                      key={`heat-cell-${cell.id}`}
+                      positions={cell.bounds}
+                      pathOptions={{
+                        color: style.color,
+                        fillColor: style.color,
+                        fillOpacity: style.opacity,
+                        opacity: 0,
+                        stroke: false,
+                        weight: 0,
+                      }}
+                    />
+                  );
+                })}
                 {customerCoords ? (
                   <Marker icon={customerPin} position={[customerCoords[1], customerCoords[0]]}>
                     <Popup>{customerLocationLabel}</Popup>
@@ -575,4 +605,7 @@ export default function CustomerHeatmapPage() {
     </div>
   );
 }
+
+
+
 
