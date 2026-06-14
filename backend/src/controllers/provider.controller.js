@@ -22,14 +22,14 @@ export const apply = async (req, res, next) => {
 
 export const getMeProvider = async (req, res, next) => {
     try {
-        const profile = await ServiceProvider.findOne({ userId: req.user._id, isDeleted: false }).populate('userId', 'name profileImage email').populate('badges');
+        const profile = await ServiceProvider.findOne({ userId: req.user._id, isDeleted: false }).populate('badges');
         return sendResponse(res, { message: 'Provider profile', data: profile });
     } catch (error) { next(error); }
 };
 
 export const updateMeProvider = async (req, res, next) => {
     try {
-        const profile = await ServiceProvider.findOneAndUpdate({ userId: req.user._id, isDeleted: false }, req.body, { returnDocument: 'after' }).populate('userId', 'name profileImage email');
+        const profile = await ServiceProvider.findOneAndUpdate({ userId: req.user._id, isDeleted: false }, req.body, { returnDocument: 'after' });
         return sendResponse(res, { message: 'Provider profile updated', data: profile });
     } catch (error) { next(error); }
 };
