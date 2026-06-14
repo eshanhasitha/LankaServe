@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import Avatar from '../../components/Avatar.tsx';
@@ -40,6 +40,7 @@ function buildThreadId(a, b, jobId = null) {
 export default function CustomerMessagesPage() {
   const { accessToken, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const routeSelectionRef = useRef('');
   const messagesContainerRef = useRef(null);
   const lastMessageIdRef = useRef('');
@@ -484,7 +485,10 @@ export default function CustomerMessagesPage() {
                         <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Manage Chat</p>
                         
                         <button 
-                          onClick={() => { alert("Viewing profile dashboard..."); setIsHeaderMenuOpen(false); }}
+                          onClick={() => { 
+                            setIsHeaderMenuOpen(false); 
+                            navigate(`/customer/provider-profile/${activeConversation.counterpartId}`);
+                          }}
                           className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
                         >
                           <span className="material-symbols-outlined text-lg text-slate-400">account_circle</span>
