@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context.tsx';
 import Avatar from '../components/Avatar.tsx';
 import { apiRequest } from '../lib/api.ts';
+import { ProviderLanguageProvider, ProviderLanguageToggle } from '../lib/provider-i18n.tsx';
 
 function asId(value) {
   if (!value) return '';
@@ -12,17 +13,22 @@ function asId(value) {
 }
 
 export default function ProviderLayout() {
+  return (
+    <ProviderLanguageProvider>
+      <ProviderLayoutInner />
+    </ProviderLanguageProvider>
+  );
+}
+
+function ProviderLayoutInner() {
   const { user, accessToken, logoutCurrentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [messageBadge, setMessageBadge] = useState(0);
   const [notificationUnread, setNotificationUnread] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [jobRequestCount, setJobRequestCount] = useState(0);
   const [myJobCount, setMyJobCount] = useState(0);
-  
-  // 🎯 Mobile Navigation State Tracker
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const [badgeSummary, setBadgeSummary] = useState({
     currentLevel: 'Provider',
     rankLabel: '',
@@ -30,12 +36,8 @@ export default function ProviderLayout() {
     totalProviders: 0,
   });
 
-  // Automatically close mobile menu when a navigation link is clicked
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
   async function onLogout() {
+    setMobileMenuOpen(false);
     await logoutCurrentUser();
     navigate('/login', { replace: true });
   }
@@ -168,6 +170,20 @@ export default function ProviderLayout() {
     loadBadgeSummary();
   }, [loadBadgeSummary]);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileMenuOpen]);
+
   const links = [
     { to: '/provider/dashboard', icon: 'dashboard', label: 'Dashboard' },
     { to: '/provider/browse-jobs', icon: 'search', label: 'Browse Jobs' },
@@ -199,42 +215,31 @@ export default function ProviderLayout() {
                     ? 'Search dashboard, messages...'
                     : 'Search provider tools...';
 
-  const roleLabel = `${badgeSummary.currentLevel}${badgeSummary.rankLabel ? ` - ${badgeSummary.rankLabel}` : ''}`;
   const isMessagesRoute = location.pathname.includes('/provider/messages');
   const isHelpCenterRoute = location.pathname.includes('/provider/help-center');
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 flex">
-      
-      {/* 🎯 Backdrop Overlay Layer: Tapping outside the sidebar panel closes it instantly */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/40 z-[2000] md:hidden transition-opacity duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* 📁 Unified Responsive Sidebar Viewport Container */}
-      <aside className={`fixed inset-y-0 left-0 z-[2050] flex w-[260px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex h-[70px] items-center justify-between border-b border-slate-100 px-6">
+    <div className="min-h-screen bg-[#F3F4F6] text-slate-900 lg:overflow-x-hidden" data-provider-i18n-root>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-slate-200 bg-white lg:flex">
+        <div className="flex h-[70px] items-center border-b border-slate-100 px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1E3A8A]">
               <span className="material-symbols-outlined text-white text-3xl">handshake</span>
             </div>
             <span className="text-xl font-bold tracking-tight text-[#2F4DA0]">LankaServe</span>
           </div>
-
-          {/* 🎯 Mobile "X" Close Button */}
-          <button 
-            type="button" 
-            className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 md:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <span className="material-symbols-outlined text-2xl">close</span>
-          </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4 py-6 overflow-y-auto">
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+            <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-9 w-9" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{user?.name || 'Provider'}</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-2">
           {links.map((item) => (
             <NavLink
               key={item.to}
@@ -294,23 +299,122 @@ export default function ProviderLayout() {
         </div>
       </aside>
 
-      {/* 💻 Adjusted Layout Margin System (Flex-1 avoids grid compressing) */}
-      <div className="flex-1 flex flex-col md:pl-[260px] min-w-0 w-full">
-        {!isMessagesRoute ? (
-          <header className="sticky top-0 z-[1000] flex h-[70px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-8">
-            <div className="flex items-center gap-4 flex-1 mr-4">
-              
-              {/* 🎯 Mobile Hamburger Icon Trigger Button */}
-              <button 
-                type="button" 
-                className="p-2 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 md:hidden"
-                onClick={() => setIsMobileMenuOpen(true)}
-              >
-                <span className="material-symbols-outlined text-2xl flex items-center">menu</span>
-              </button>
+      <div
+        className={`fixed inset-0 z-40 bg-slate-900/40 transition-opacity duration-200 lg:hidden ${
+          mobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-[320px] border-r border-slate-200 bg-white transition-transform duration-200 ease-out lg:hidden ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex h-[70px] items-center justify-between border-b border-slate-100 px-5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1E3A8A]">
+              <span className="material-symbols-outlined text-3xl text-white">handshake</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-[#2F4DA0]">LankaServe</span>
+          </div>
+          <button
+            aria-label="Close navigation menu"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            onClick={() => setMobileMenuOpen(false)}
+            type="button"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
 
-              {!isHelpCenterRoute && (
-                <div className="hidden sm:flex w-full max-w-md items-center gap-2 rounded-full border border-transparent bg-slate-50 px-3 transition-all focus-within:border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F4DA0]">
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+            <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-9 w-9" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{user?.name || 'Provider'}</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="max-h-[calc(100vh-230px)] space-y-1 overflow-y-auto px-4 py-2">
+          {links.map((item) => (
+            <NavLink
+              key={`mobile-${item.to}`}
+              to={item.to}
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition-all ${isActive ? 'bg-[#2F4DA0] text-white' : 'text-slate-600 hover:bg-slate-50'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {(item.showZeroBadge ? item.badge !== undefined : Boolean(item.badge)) ? (
+                    <span
+                      className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        isActive && item.to === '/provider/messages'
+                          ? 'bg-white text-[#2F4DA0]'
+                          : `${item.badgeClass || 'bg-red-500'} text-white`
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="mt-2 space-y-1 border-t border-slate-100 p-4">
+          <NavLink
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium ${
+                isActive ? 'bg-[#2F4DA0] text-white' : 'text-slate-500 hover:text-[#2F4DA0]'
+              }`
+            }
+            onClick={() => setMobileMenuOpen(false)}
+            to="/provider/help-center"
+          >
+            <span className="material-symbols-outlined text-xl">help</span>
+            <span>Help Center</span>
+          </NavLink>
+          <NavLink
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium ${
+                isActive ? 'bg-[#2F4DA0] text-white' : 'text-slate-500 hover:text-[#2F4DA0]'
+              }`
+            }
+            onClick={() => setMobileMenuOpen(false)}
+            to="/provider/settings"
+          >
+            <span className="material-symbols-outlined text-xl">settings</span>
+            <span>Settings</span>
+          </NavLink>
+          <button className="flex w-full items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50" onClick={onLogout} type="button">
+            <span className="material-symbols-outlined text-xl">logout</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <main className={`lg:ml-[260px] ${isMessagesRoute ? 'min-h-screen bg-white lg:h-screen' : 'min-h-screen bg-[#F3F4F6]'}`}>
+        {!isMessagesRoute ? (
+          <header className="sticky top-0 z-[1200] flex min-h-[70px] items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+              <button
+                aria-label="Open navigation menu"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+                onClick={() => setMobileMenuOpen(true)}
+                type="button"
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+              {isHelpCenterRoute ? (
+                <div className="invisible w-full max-w-[460px]" />
+              ) : (
+                <div className="flex w-full max-w-[460px] items-center gap-2 rounded-full border border-transparent bg-slate-50 px-3 transition-all focus-within:border-transparent focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2F4DA0]">
                   <span className="material-symbols-outlined shrink-0 text-xl text-slate-400">search</span>
                   <input
                     className="flex-1 border-0 bg-transparent py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none"
@@ -321,40 +425,48 @@ export default function ProviderLayout() {
               )}
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              <div className="hidden lg:flex items-center gap-1 text-sm font-semibold text-slate-600">
-                <span className="cursor-pointer hover:text-[#2F4DA0]">EN</span>
-                <span className="text-slate-300">|</span>
-                <span className="cursor-pointer text-slate-400 hover:text-[#2F4DA0]">SI</span>
-                <span className="text-slate-300">|</span>
-                <span className="cursor-pointer text-slate-400 hover:text-[#2F4DA0]">TA</span>
-              </div>
+            <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
+              <ProviderLanguageToggle className="hidden md:flex" />
               <NavLink className="relative text-slate-500" to="/provider/notifications">
                 <span className="material-symbols-outlined text-2xl">notifications</span>
                 {notificationUnread > 0 ? <span className="absolute right-0 top-0 h-2 w-2 rounded-full border-2 border-white bg-red-500" /> : null}
               </NavLink>
-              <div className="flex items-center gap-3">
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm font-semibold">{user?.name || 'Provider'}</p>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{roleLabel}</p>
-                </div>
-                <button
-                  className="h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-slate-200"
-                  type="button"
-                  onClick={() => navigate('/provider/settings')}
-                  aria-label="Open profile settings"
-                >
-                  <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-full w-full" />
-                </button>
-              </div>
+              <button
+                className="h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-slate-200"
+                type="button"
+                onClick={() => navigate('/provider/settings')}
+                aria-label="Open profile settings"
+              >
+                <Avatar src={user?.profileImage || user?.photoURL} name={user?.name} className="h-full w-full" />
+              </button>
             </div>
           </header>
-        ) : null}
+        ) : (
+          <header className="sticky top-0 z-[1200] flex h-[64px] items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+            <div className="flex items-center gap-3">
+              <button
+                aria-label="Open navigation menu"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                onClick={() => setMobileMenuOpen(true)}
+                type="button"
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+              <h1 className="text-base font-bold">Messages</h1>
+            </div>
+            <NavLink className="relative text-slate-500" to="/provider/notifications">
+              <span className="material-symbols-outlined text-2xl">notifications</span>
+              {notificationUnread > 0 ? <span className="absolute right-0 top-0 h-2 w-2 rounded-full border-2 border-white bg-red-500" /> : null}
+            </NavLink>
+          </header>
+        )}
 
-        <main className={`flex-1 min-w-0 ${isMessagesRoute ? 'h-screen bg-white' : 'p-4 sm:p-6 lg:p-8 bg-[#F3F4F6]'}`}>
-          <Outlet />
-        </main>
-      </div>
+        <Outlet />
+      </main>
     </div>
   );
 }
+
+
+
+
