@@ -225,9 +225,16 @@ const copy: TranslationMap = {
   'Type your city or district in Sri Lanka': { si: 'ශ්‍රී ලංකාවේ ඔබේ නගරය හෝ දිස්ත්‍රික්කය ටයිප් කරන්න', ta: 'இலங்கையில் உங்கள் நகரம் அல்லது மாவட்டத்தை தட்டச்சு செய்யவும்' },
   'Tell us about your preferences...': { si: 'ඔබේ කැමැත්ත ගැන අපට කියන්න...', ta: 'உங்கள் விருப்பங்களைப் பற்றி சொல்லுங்கள்...' },
   Cancel: { si: 'අවලංගු කරන්න', ta: 'ரத்து செய்' },
-  'Services & Availability': { si: 'සේවා සහ ලබාගත හැකියාව', ta: 'சேவைகள் மற்றும் கிடைக்கும் நிலை' },
   'Notification Preferences': { si: 'දැනුම්දීම් කැමැත්ත', ta: 'அறிவிப்பு விருப்பங்கள்' },
   'Change Password': { si: 'මුරපදය වෙනස් කරන්න', ta: 'கடவுச்சொல்லை மாற்று' },
+  'View Job': { si: 'රැකියාව බලන්න', ta: 'வேலையைப் பார்க்க' },
+  Customer: { si: 'පාරිභෝගිකයා', ta: 'வாடிக்கையாளர்' },
+  Budget: { si: 'අයවැය', ta: 'பட்ஜெட்' },
+  Available: { si: 'ලබා ගත හැක', ta: 'கிடைக்கும்' },
+  Unavailable: { si: 'ලබා ගත නොහැක', ta: 'கிடைக்கவில்லை' },
+  Verification: { si: 'සත්‍යාපනය', ta: 'சரிபார்ப்பு' },
+  Pending: { si: 'බලාපොරොත්තුවෙන්', ta: 'நிலுவையில்' },
+  'Based on customer reviews': { si: 'පාරිභෝගික සමාලෝචන මත පදනම්ව', ta: 'வாடிக்கையாளர் மதிப்புரைகளின் அடிப்படையில்' },
 };
 
 const reverseCopy: Record<string, string> = Object.entries(copy).reduce((acc, [english, translations]) => {
@@ -368,4 +375,3 @@ export function CustomerLanguageToggle({ className = '' }: { className?: string 
     </div>
   );
 }
-
