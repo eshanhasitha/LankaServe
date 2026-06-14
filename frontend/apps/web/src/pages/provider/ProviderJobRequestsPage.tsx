@@ -2,6 +2,8 @@
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
+import { formatRelativeTime } from '../../lib/date-time.ts';
+import { reverseGeocodeLocation } from '../../lib/location.ts';
 import Skeleton from '../../components/Skeleton.tsx';
 import JobListCard from '../../components/JobListCard.tsx';
 
@@ -12,18 +14,29 @@ function toCurrency(value) {
 }
 
 function formatLocation(job) {
+  if (job?.locationText) return job.locationText;
   const customer = job?.customerId || {};
   return [customer.city, customer.district].filter(Boolean).join(', ') || 'Sri Lanka';
 }
 
-function timeAgo(iso) {
-  if (!iso) return 'Recently';
-  const ms = Date.now() - new Date(iso).getTime();
-  const mins = Math.max(1, Math.floor(ms / 60000));
-  if (mins < 60) return `${mins} mins ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
-  return 'Yesterday';
+function statusPill(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'accepted') return { label: 'Accepted', className: 'bg-blue-50 text-[#2F4DA0]' };
+  if (s === 'arrived') return { label: 'Arrived', className: 'bg-emerald-50 text-emerald-600' };
+  if (s === 'ongoing') return { label: 'In Progress', className: 'bg-blue-50 text-[#2F4DA0]' };
+  if (s === 'completed' || s === 'paid') return { label: 'Completed', className: 'bg-emerald-50 text-emerald-600' };
+  if (s === 'cancelled') return { label: 'Cancelled', className: 'bg-red-50 text-red-600' };
+  return { label: 'Pending', className: 'bg-orange-50 text-orange-600' };
+}
+
+function statusLine(job) {
+  const s = String(job?.status || '').toLowerCase();
+  if (s === 'accepted') return job?.acceptedAt ? `Accepted ${formatRelativeTime(job.acceptedAt)}` : 'Accepted';
+  if (s === 'arrived') return job?.arrivedAt ? `Arrived ${formatRelativeTime(job.arrivedAt)}` : 'Arrived';
+  if (s === 'ongoing') return 'Work in progress';
+  if (s === 'completed' || s === 'paid') return job?.completedAt ? `Finished ${formatRelativeTime(job.completedAt)}` : 'Completed';
+  if (s === 'cancelled') return 'Cancelled';
+  return `Posted ${formatRelativeTime(job?.createdAt)}`;
 }
 
 export default function ProviderJobRequestsPage() {
@@ -48,7 +61,14 @@ export default function ProviderJobRequestsPage() {
         const response = await apiRequest(`/providers/job-requests?page=${pagination.page}&limit=${PAGE_SIZE}`, { headers });
         if (!mounted) return;
         const items = Array.isArray(response?.data) ? response.data : [];
-        setRequests(items);
+        const enrichedItems = await Promise.all(
+          items.map(async (job) => {
+            const locationInfo = await reverseGeocodeLocation(job.location);
+            return { ...job, locationText: locationInfo.shortLabel };
+          })
+        );
+        if (!mounted) return;
+        setRequests(enrichedItems);
         setPagination({
           page: Number(response?.pagination?.page || pagination.page || 1),
           total: Number(response?.pagination?.total || 0),
@@ -139,12 +159,14 @@ export default function ProviderJobRequestsPage() {
       ) : null}
 
       <section className="space-y-4">
-        {!loading && requests.map((item) => (
+        {!loading && requests.map((item) => {
+          const badge = statusPill(item.status);
+          return (
           <JobListCard
             key={item._id}
             badges={[
-              { label: item.category || 'General', className: 'bg-blue-100 text-[#2F4DA0]' },
-              { label: 'Open', className: 'bg-orange-100 text-orange-600' },
+              { label: item.category || 'General', className: 'bg-blue-50 text-blue-600' },
+              { label: badge.label, className: badge.className },
             ]}
             title={item.title || 'Untitled Job'}
             infoBlocks={[
@@ -163,9 +185,9 @@ export default function ProviderJobRequestsPage() {
               },
               {
                 type: 'icon',
-                icon: 'schedule',
-                label: 'Posted',
-                value: timeAgo(item.createdAt),
+                icon: 'timer',
+                label: 'Status',
+                value: statusLine(item),
               },
             ]}
             description={item.description || 'No description available.'}
@@ -184,7 +206,8 @@ export default function ProviderJobRequestsPage() {
               </>
             }
           />
-        ))}
+        );
+        })}
         {!loading && !requests.length ? (
           <div className="bg-white p-6 rounded-2xl border border-slate-100 text-sm text-slate-500">No pending job requests.</div>
         ) : null}
