@@ -467,7 +467,7 @@ class _JobStatusScreenState extends State<JobStatusScreen> {
                       if (_error != null)
                         _EmptyState(label: _error!)
                       else if (_loading)
-                        const _EmptyState(label: 'Loading jobs...')
+                        const _JobsSkeleton()
                       else if (filtered.isEmpty)
                         _EmptyState(
                           label: 'No jobs found in $_activeTab tab.',
@@ -646,10 +646,10 @@ class _JobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE3E8F0)),
       ),
       child: Column(
@@ -665,7 +665,7 @@ class _JobCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF141C34),
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     height: 1.2,
                   ),
@@ -674,8 +674,8 @@ class _JobCard extends StatelessWidget {
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
+                  horizontal: 10,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   color: item.statusBg,
@@ -685,7 +685,7 @@ class _JobCard extends StatelessWidget {
                   item.statusText,
                   style: TextStyle(
                     color: item.statusColor,
-                    fontSize: 10.5,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
                   ),
@@ -698,7 +698,7 @@ class _JobCard extends StatelessWidget {
             text: TextSpan(
               style: const TextStyle(
                 color: Color(0xFF6E7F98),
-                fontSize: 12.5,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w500,
               ),
               children: [
@@ -726,7 +726,7 @@ class _JobCard extends StatelessWidget {
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: 16,
                       backgroundColor: const Color(0xFFE7EDF5),
                       child: Icon(
                         item.providerName == 'Awaiting Provider'
@@ -745,7 +745,7 @@ class _JobCard extends StatelessWidget {
                             'Service Provider',
                             style: TextStyle(
                               color: Color(0xFF6A7A93),
-                              fontSize: 12.2,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -757,7 +757,7 @@ class _JobCard extends StatelessWidget {
                               color: item.providerName == 'Awaiting Provider'
                                   ? const Color(0xFF8EA0B8)
                                   : const Color(0xFF141C34),
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -782,7 +782,7 @@ class _JobCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFF6C7C95),
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -823,7 +823,7 @@ class _JobCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   onTap: onViewDetails,
                   child: Container(
-                    height: 50,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: const Color(0xFF273D98),
                       borderRadius: BorderRadius.circular(16),
@@ -833,7 +833,7 @@ class _JobCard extends StatelessWidget {
                       'View Details',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -846,7 +846,7 @@ class _JobCard extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: cancelling ? null : onCancel,
                     style: AppUiStyles.dangerOutlineButton(
-                      height: 50,
+                      height: 40,
                       radius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -878,6 +878,70 @@ class _JobCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _JobsSkeleton extends StatelessWidget {
+  const _JobsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (index) => const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: _SkeletonJobCard(),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonJobCard extends StatelessWidget {
+  const _SkeletonJobCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE7EBF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _SkeletonLine(width: 180, height: 24),
+          SizedBox(height: 10),
+          _SkeletonLine(width: 120, height: 16),
+          SizedBox(height: 18),
+          _SkeletonLine(width: double.infinity, height: 58),
+          SizedBox(height: 14),
+          _SkeletonLine(width: double.infinity, height: 48),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonLine extends StatelessWidget {
+  const _SkeletonLine({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EDF4),
+        borderRadius: BorderRadius.circular(14),
       ),
     );
   }

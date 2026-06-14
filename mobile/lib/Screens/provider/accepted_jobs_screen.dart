@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/routes.dart';
 import '../../services/provider_service.dart';
 import '../../widgets/provider_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class AcceptedJobsScreen extends StatefulWidget {
@@ -83,6 +84,53 @@ class _AcceptedJobsScreenState extends State<AcceptedJobsScreen> {
     Navigator.pushNamed(context, AppRoutes.qrDisplay, arguments: id);
   }
 
+  void _openCustomerChat(Map<String, dynamic> job) {
+    final customer = job['customerId'];
+    String customerId = '';
+    String customerName = 'Customer';
+    String customerAvatar = '';
+
+    if (customer is Map<String, dynamic>) {
+      customerId =
+          customer['_id']?.toString() ??
+          customer['id']?.toString() ??
+          '';
+      final userId = customer['userId'];
+      if (customerId.isEmpty && userId is Map<String, dynamic>) {
+        customerId = userId['_id']?.toString() ?? '';
+      }
+      if (customerId.isEmpty && userId is String) {
+        customerId = userId;
+      }
+      customerName = customer['name']?.toString().trim().isNotEmpty == true
+          ? customer['name'].toString().trim()
+          : 'Customer';
+      customerAvatar = customer['profileImage']?.toString() ?? '';
+    } else if (customer is String && customer.trim().isNotEmpty) {
+      customerId = customer;
+    }
+
+    if (customerId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Customer info unavailable.')),
+      );
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      AppRoutes.chatConversation,
+      arguments: {
+        'counterpartId': customerId,
+        'counterpartName': customerName,
+        'counterpartAvatar': customerAvatar,
+        'isProvider': false,
+        if ((job['_id']?.toString() ?? '').isNotEmpty)
+          'jobId': job['_id'].toString(),
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final compactScale = UiScale.factor(context, min: 0.76, max: 0.90);
@@ -110,7 +158,7 @@ class _AcceptedJobsScreenState extends State<AcceptedJobsScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (_loading)
-                        const _InfoTile(message: 'Loading jobs...')
+                        const _AcceptedJobsSkeleton()
                       else if (_error != null)
                         _InfoTile(message: _error!)
                       else if (_filteredJobs.isEmpty)
@@ -123,11 +171,7 @@ class _AcceptedJobsScreenState extends State<AcceptedJobsScreen> {
                               job: job,
                               onViewDetails: () => _openDetails(job),
                               onChatTap: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.chat,
-                                  arguments: const {'fromProvider': true},
-                                );
+                                _openCustomerChat(job);
                               },
                             ),
                           ),
@@ -177,74 +221,49 @@ class _JobsTabs extends StatelessWidget {
   final int activeTab;
   final ValueChanged<int> onTabChanged;
 
+  static const List<String> _tabsList = ['Accepted', 'Ongoing', 'Completed'];
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE1E6EE),
-        borderRadius: BorderRadius.circular(24),
+      height: 48,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE1E8F3))),
       ),
       child: Row(
-        children: [
-          Expanded(
-            child: _tab(
-              text: 'Accepted',
-              selected: activeTab == 0,
-              onTap: () => onTabChanged(0),
-            ),
-          ),
-          Expanded(
-            child: _tab(
-              text: 'Ongoing',
-              selected: activeTab == 1,
-              onTap: () => onTabChanged(1),
-            ),
-          ),
-          Expanded(
-            child: _tab(
-              text: 'Completed',
-              selected: activeTab == 2,
-              onTap: () => onTabChanged(2),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tab({
-    required String text,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: selected
-              ? const [
-                  BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(_tabsList.length, (index) {
+          final tab = _tabsList[index];
+          final selected = index == activeTab;
+          return Expanded(
+            child: InkWell(
+              onTap: () => onTabChanged(index),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: selected
+                          ? const Color(0xFF2F4DA0)
+                          : Colors.transparent,
+                      width: 2,
+                    ),
                   ),
-                ]
-              : null,
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: selected ? const Color(0xFF141C34) : const Color(0xFF637694),
-            fontSize: 14.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+                ),
+                child: Text(
+                  tab,
+                  style: TextStyle(
+                    color: selected
+                        ? const Color(0xFF2F4DA0)
+                        : const Color(0xFF64748B),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -346,10 +365,10 @@ class _JobCard extends StatelessWidget {
     final avatarUrl = _customerAvatarUrl();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE6EAF1)),
         boxShadow: const [
           BoxShadow(
@@ -369,14 +388,14 @@ class _JobCard extends StatelessWidget {
                   title,
                       style: const TextStyle(
                         color: Color(0xFF141C34),
-                        fontSize: 17.5,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: _statusBg(),
                   borderRadius: BorderRadius.circular(13),
@@ -385,7 +404,7 @@ class _JobCard extends StatelessWidget {
                   _statusLabel(),
                   style: TextStyle(
                     color: _statusFg(),
-                    fontSize: 10.8,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                   ),
@@ -400,7 +419,7 @@ class _JobCard extends StatelessWidget {
                 'LKR ${_formatMoney(amount)}',
                 style: const TextStyle(
                   color: Color(0xFF141C34),
-                  fontSize: 17,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -409,7 +428,7 @@ class _JobCard extends StatelessWidget {
                 '•',
                 style: TextStyle(
                   color: Color(0xFF9AA8BC),
-                  fontSize: 17,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -419,7 +438,7 @@ class _JobCard extends StatelessWidget {
                   _postedLabel(),
                   style: const TextStyle(
                     color: Color(0xFF6E7F98),
-                    fontSize: 13.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -428,7 +447,7 @@ class _JobCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF3F6FB),
               borderRadius: BorderRadius.circular(20),
@@ -436,8 +455,8 @@ class _JobCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8EDF5),
                     shape: BoxShape.circle,
@@ -452,7 +471,7 @@ class _JobCard extends StatelessWidget {
                       ? const Icon(
                           Icons.person_outline_rounded,
                           color: Color(0xFF8EA0B8),
-                          size: 28,
+                          size: 24,
                         )
                       : null,
                 ),
@@ -465,7 +484,7 @@ class _JobCard extends StatelessWidget {
                         'User',
                         style: TextStyle(
                           color: Color(0xFF7A8CA7),
-                          fontSize: 11.5,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -474,7 +493,7 @@ class _JobCard extends StatelessWidget {
                         _customerName(),
                         style: const TextStyle(
                           color: Color(0xFF1A243C),
-                          fontSize: 16.5,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -484,14 +503,14 @@ class _JobCard extends StatelessWidget {
                 InkWell(
                   onTap: onChatTap,
                   borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: Color(0xFF5E6F88),
-                      size: 33,
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: Color(0xFF5E6F88),
+                        size: 26,
+                      ),
                     ),
-                  ),
                 ),
               ],
             ),
@@ -501,11 +520,11 @@ class _JobCard extends StatelessWidget {
             onTap: onViewDetails,
             borderRadius: BorderRadius.circular(24),
             child: Container(
-              height: 56,
+              height: 46,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: const Color(0xFF273E99),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x1E273E99),
@@ -518,7 +537,7 @@ class _JobCard extends StatelessWidget {
                 'View Details',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16.5,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -552,6 +571,28 @@ class _InfoTile extends StatelessWidget {
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+}
+
+class _AcceptedJobsSkeleton extends StatelessWidget {
+  const _AcceptedJobsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: [
+          ...List.generate(
+            3,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: ShimmerBox(height: 180, borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+          const SizedBox(height: 86),
+        ],
       ),
     );
   }

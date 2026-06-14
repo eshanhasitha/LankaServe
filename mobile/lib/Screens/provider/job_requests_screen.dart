@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/routes.dart';
 import '../../services/job_service.dart';
 import '../../widgets/provider_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class JobRequestsScreen extends StatefulWidget {
@@ -175,7 +176,7 @@ class _JobRequestsScreenState extends State<JobRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final compactScale = UiScale.factor(context, min: 0.90, max: 1.0);
+    final compactScale = UiScale.factor(context, min: 0.76, max: 0.90);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F7),
@@ -200,7 +201,7 @@ class _JobRequestsScreenState extends State<JobRequestsScreen> {
                       ),
                       const SizedBox(height: 12),
                       if (_loading)
-                        const _InfoTile('Loading jobs...')
+                        const _JobRequestsSkeleton()
                       else if (_error != null)
                         _InfoTile(_error!)
                       else if (_currentItems.isEmpty)
@@ -265,24 +266,26 @@ class _Tabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _tab(
+    return Container(
+      height: 48,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE1E8F3))),
+      ),
+      child: Row(
+        children: [
+          _tab(
             text: 'Job Requests',
             selected: activeTab == 0,
             onTap: () => onChanged(0),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _tab(
+          const SizedBox(width: 24),
+          _tab(
             text: 'Related Jobs',
             selected: activeTab == 1,
             onTap: () => onChanged(1),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -292,21 +295,26 @@ class _Tabs extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF273E99) : const Color(0xFFD6DDE9),
-          borderRadius: BorderRadius.circular(999),
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? const Color(0xFF2F4DA0) : Colors.transparent,
+              width: 2,
+            ),
+          ),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: selected ? Colors.white : const Color(0xFF4D5D77),
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: selected ? const Color(0xFF2F4DA0) : const Color(0xFF64748B),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -400,7 +408,7 @@ class _RequestCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: onViewDetails,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: const Color(0xFFE4E8EF)),
@@ -422,7 +430,7 @@ class _RequestCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: Color(0xFF141C34),
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -431,7 +439,7 @@ class _RequestCard extends StatelessWidget {
                     _timeAgo(item['createdAt']),
                     style: const TextStyle(
                       color: Color(0xFF90A0B9),
-                      fontSize: 13,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -443,15 +451,15 @@ class _RequestCard extends StatelessWidget {
                   const Icon(
                     Icons.person_outline_rounded,
                     color: Color(0xFF556783),
-                    size: 23,
+                    size: 19,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _requester(),
                       style: const TextStyle(
                         color: Color(0xFF4B5D77),
-                        fontSize: 15.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -464,15 +472,15 @@ class _RequestCard extends StatelessWidget {
                   const Icon(
                     Icons.near_me_outlined,
                     color: Color(0xFF556783),
-                    size: 23,
+                    size: 19,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _distanceAndLocationText(),
                       style: const TextStyle(
                         color: Color(0xFF4B5D77),
-                        fontSize: 15.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -485,14 +493,14 @@ class _RequestCard extends StatelessWidget {
                   const Icon(
                     Icons.payments_outlined,
                     color: Color(0xFF16A34A),
-                    size: 24,
+                    size: 20,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
                     'LKR ${_formatMoney(amount)}',
                     style: const TextStyle(
                       color: Color(0xFF141C34),
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -506,17 +514,17 @@ class _RequestCard extends StatelessWidget {
                       onTap: actioning ? null : onReject,
                       borderRadius: BorderRadius.circular(18),
                       child: Container(
-                        height: 50,
+                        height: 42,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           border: Border.all(color: const Color(0xFFD3DBE7)),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Text(
                           'Reject',
                           style: TextStyle(
                             color: Color(0xFF42556F),
-                            fontSize: 15.5,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -529,16 +537,16 @@ class _RequestCard extends StatelessWidget {
                       onTap: actioning ? null : onAccept,
                       borderRadius: BorderRadius.circular(18),
                       child: Container(
-                        height: 50,
+                        height: 42,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: const Color(0xFF273E99),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: actioning
                             ? const SizedBox(
-                                width: 18,
-                                height: 18,
+                                width: 16,
+                                height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor:
@@ -549,7 +557,7 @@ class _RequestCard extends StatelessWidget {
                                 'Accept',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 15.5,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -588,6 +596,28 @@ class _InfoTile extends StatelessWidget {
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+}
+
+class _JobRequestsSkeleton extends StatelessWidget {
+  const _JobRequestsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: [
+          ...List.generate(
+            3,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: ShimmerBox(height: 138, borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+          const SizedBox(height: 86),
+        ],
       ),
     );
   }

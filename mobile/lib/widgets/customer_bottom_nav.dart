@@ -36,7 +36,7 @@ class _CustomerBottomNavState extends State<CustomerBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = UiScale.factor(context, min: 0.80, max: 0.95);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final navHeight = (84 * scale).clamp(74, 90).toDouble();
     final qrSize = (70 * scale).clamp(58, 72).toDouble();
@@ -175,7 +175,7 @@ class _CustomerBottomNavState extends State<CustomerBottomNav> {
     Object? routeArgs,
   }) {
     final active = index == widget.activeIndex;
-    final scale = UiScale.factor(context, min: 0.80, max: 0.95);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90);
     return InkWell(
       onTap: () {
         if (!active) {

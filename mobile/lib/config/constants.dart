@@ -23,6 +23,19 @@ class AppConstants {
   static final List<String> apiBaseUrlCandidates = _buildApiBaseUrlCandidates();
   static String get apiBaseUrl => apiBaseUrlCandidates.first;
 
+  static String normalizeUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return '';
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    final host = apiBaseUrl;
+    if (trimmed.startsWith('/')) {
+      return '$host$trimmed';
+    }
+    return '$host/$trimmed';
+  }
+
   static const String apiPrefix = String.fromEnvironment(
     'API_PREFIX',
     defaultValue: '/api',
