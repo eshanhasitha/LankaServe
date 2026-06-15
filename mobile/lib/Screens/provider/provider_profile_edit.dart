@@ -1,6 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-import '../../config/routes.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../config/constants.dart';
+import '../../services/api_service.dart';
 import '../../services/provider_service.dart';
 import '../../widgets/provider_bottom_nav.dart';
 import '../../widgets/ui_scale.dart';
@@ -13,13 +17,18 @@ class ProviderProfileEdit extends StatefulWidget {
 }
 
 class _ProviderProfileEditState extends State<ProviderProfileEdit> {
+  final ApiService _apiService = ApiService();
   final ProviderService _providerService = ProviderService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool _loading = true;
+  bool _uploadingAvatar = false;
   String? _error;
   Map<String, dynamic> _profile = <String, dynamic>{};
   Map<String, dynamic> _publicProfile = <String, dynamic>{};
   Map<String, dynamic> _dashboard = <String, dynamic>{};
+  Map<String, dynamic> _me = <String, dynamic>{};
+  List<dynamic> _badges = <dynamic>[];
 
   @override
   void initState() {
@@ -37,16 +46,39 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
       final results = await Future.wait<dynamic>([
         _providerService.getProviderMe(),
         _providerService.getProviderDashboard(),
+        _providerService.getProviderBadges(),
+        _apiService.get('/users/me'),
       ]);
 
       final profile =
           (results[0] as Map<String, dynamic>?) ?? <String, dynamic>{};
       final dashboard =
           (results[1] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final badgesRes =
+          (results[2] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final activeList = (badgesRes['active'] as List?) ?? [];
+      final lockedList = (badgesRes['locked'] as List?) ?? [];
+      final List<Map<String, dynamic>> badges = [];
+      for (final item in activeList) {
+        if (item is Map) {
+          badges.add({
+            ...Map<String, dynamic>.from(item),
+            'unlocked': true,
+          });
+        }
+      }
+      for (final item in lockedList) {
+        if (item is Map) {
+          badges.add({
+            ...Map<String, dynamic>.from(item),
+            'unlocked': false,
+          });
+        }
+      }
 
       Map<String, dynamic> publicProfile = <String, dynamic>{};
       final user = profile['userId'];
-      final providerUserId = user is Map<String, dynamic>
+      final providerUserId = user is Map
           ? user['_id']?.toString() ?? ''
           : user?.toString() ?? '';
       if (providerUserId.isNotEmpty) {
@@ -59,11 +91,18 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
         }
       }
 
+      final meRes =
+          (results[3] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final me =
+          (meRes['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
       if (!mounted) return;
       setState(() {
         _profile = profile;
         _dashboard = dashboard;
         _publicProfile = publicProfile;
+        _badges = badges;
+        _me = me;
       });
     } catch (e) {
       if (!mounted) return;
@@ -87,13 +126,15 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
   }
 
   String _providerName() {
+    final meName = _me['name']?.toString().trim() ?? '';
+    if (meName.isNotEmpty) return meName;
     final user = _profile['userId'];
-    if (user is Map<String, dynamic>) {
+    if (user is Map) {
       final value = user['name']?.toString().trim() ?? '';
       if (value.isNotEmpty) return value;
     }
     final publicUser = _publicProfile['userId'];
-    if (publicUser is Map<String, dynamic>) {
+    if (publicUser is Map) {
       final value = publicUser['name']?.toString().trim() ?? '';
       if (value.isNotEmpty) return value;
     }
@@ -101,17 +142,147 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
   }
 
   String _avatarUrl() {
+    final meAvatar = _me['profileImage']?.toString() ?? '';
+    if (meAvatar.isNotEmpty) return AppConstants.normalizeUrl(meAvatar);
     final user = _profile['userId'];
-    if (user is Map<String, dynamic>) {
+    if (user is Map) {
       final value = user['profileImage']?.toString() ?? '';
-      if (value.isNotEmpty) return value;
+      if (value.isNotEmpty) return AppConstants.normalizeUrl(value);
     }
     final publicUser = _publicProfile['userId'];
-    if (publicUser is Map<String, dynamic>) {
+    if (publicUser is Map) {
       final value = publicUser['profileImage']?.toString() ?? '';
-      if (value.isNotEmpty) return value;
+      if (value.isNotEmpty) return AppConstants.normalizeUrl(value);
     }
     return '';
+  }
+
+  String _avatarInitial() {
+    final name = _providerName().trim();
+    if (name.isEmpty || name.toLowerCase() == 'provider') return 'P';
+    return String.fromCharCode(name.runes.first).toUpperCase();
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    if (_uploadingAvatar) return;
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            const Text(
+              'Change Profile Photo',
+              style: TextStyle(
+                color: Color(0xFF121C33),
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1200,
+      );
+      if (picked == null) return;
+      if (!mounted) return;
+
+      setState(() => _uploadingAvatar = true);
+      final upload = await _apiService.postMultipart(
+        '/uploads/profile-image',
+        file: File(picked.path),
+      );
+      final data =
+          (upload['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final imageUrl = data['url']?.toString().trim() ?? '';
+      if (imageUrl.isEmpty) {
+        throw ApiException('Profile image upload did not return a URL.');
+      }
+
+      await _apiService.put('/users/me', body: {'profileImage': imageUrl});
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile photo: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _openEditNameAndBio() async {
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _EditNameAndBioSheet(
+        initialName: _providerName(),
+        initialBio: _profile['bio']?.toString() ?? _publicProfile['bio']?.toString() ?? '',
+      ),
+    );
+
+    if (result == null) return;
+
+    final name = result['name'] ?? '';
+    final bio = result['bio'] ?? '';
+
+    bool updated = false;
+    try {
+      if (name != _providerName()) {
+        await _apiService.put('/users/me', body: {'name': name});
+        updated = true;
+      }
+      if (bio != (_profile['bio']?.toString() ?? _publicProfile['bio']?.toString() ?? '')) {
+        await _providerService.updateProviderProfile({'bio': bio});
+        updated = true;
+      }
+
+      if (updated) {
+        if (!mounted) return;
+        await _load();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile: $e')),
+      );
+    }
   }
 
   String _titleLine() {
@@ -166,18 +337,7 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
     return mins < 1 ? '<1 min' : '~${mins.toStringAsFixed(0)} min';
   }
 
-  List<Map<String, dynamic>> _badgeItems() {
-    final badges =
-        (_profile['badges'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        <Map<String, dynamic>>[];
-    if (badges.isNotEmpty) return badges;
-    return <Map<String, dynamic>>[
-      {'name': 'Top Rated Provider'},
-      {'name': 'Fast Responder'},
-    ];
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +366,10 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
           ).copyWith(textScaler: TextScaler.linear(compactScale)),
           child: Column(
             children: [
-              _Header(onBack: () => Navigator.maybePop(context)),
+              _Header(
+                onBack: () => Navigator.maybePop(context),
+                onEditTap: _openEditNameAndBio,
+              ),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _load,
@@ -215,14 +378,7 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
                     padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
                     children: [
                       if (_loading)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 80),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF273D98),
-                            ),
-                          ),
-                        )
+                        const _ProviderProfileSkeleton()
                       else if (_error != null)
                         _InfoTile(message: _error!)
                       else ...[
@@ -230,22 +386,14 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
                           name: _providerName(),
                           subtitle: _titleLine(),
                           avatarUrl: _avatarUrl(),
+                          initial: _avatarInitial(),
+                          uploadingAvatar: _uploadingAvatar,
+                          onAvatarTap: _changeProfilePhoto,
                           verified: verified,
                           rating: avgRating,
                           reviews: totalReviews,
                         ),
                         const SizedBox(height: 14),
-                        _SectionTitle(
-                          'Achievements & Badges',
-                          'View All',
-                          onActionTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.providerBadges,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _AchievementRow(badges: _badgeItems()),
-                        const SizedBox(height: 12),
                         _MetricRow(
                           leftValue: completedJobs.toString(),
                           leftLabel: 'Jobs Completed',
@@ -263,8 +411,18 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
                           rightLabel: 'Experience',
                           rightIcon: Icons.workspace_premium_outlined,
                         ),
+                        if (_badges.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _SectionTitle(
+                            'Achievements & Badges',
+                            action: 'View All',
+                            onActionTap: () => Navigator.pushNamed(context, '/provider/badges'),
+                          ),
+                          const SizedBox(height: 8),
+                          _AchievementRow(badges: _badges),
+                        ],
                         const SizedBox(height: 14),
-                        const _SectionTitle('About', ''),
+                        const _SectionTitle('About'),
                         const SizedBox(height: 8),
                         _AboutCard(
                           text: _aboutText(),
@@ -286,9 +444,10 @@ class _ProviderProfileEditState extends State<ProviderProfileEdit> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
+  const _Header({required this.onBack, this.onEditTap});
 
   final VoidCallback onBack;
+  final VoidCallback? onEditTap;
 
   @override
   Widget build(BuildContext context) {
@@ -325,20 +484,65 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () {},
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(
-                Icons.edit_outlined,
-                color: Color(0xFF4D5D77),
-                size: 24,
+          if (onEditTap != null)
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: onEditTap,
+              child: const SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(
+                  Icons.edit_outlined,
+                  color: Color(0xFF4D5D77),
+                  size: 24,
+                ),
               ),
             ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProviderProfileSkeleton extends StatelessWidget {
+  const _ProviderProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _SkeletonBox(height: 248, radius: 24),
+        const SizedBox(height: 14),
+        Row(
+          children: const [
+            Expanded(child: _SkeletonBox(height: 86, radius: 16)),
+            SizedBox(width: 10),
+            Expanded(child: _SkeletonBox(height: 86, radius: 16)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const _SkeletonBox(height: 122, radius: 18),
+        const SizedBox(height: 12),
+        const _SkeletonBox(height: 162, radius: 18),
+        const SizedBox(height: 86),
+      ],
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({required this.height, required this.radius});
+
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EDF4),
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }
@@ -349,6 +553,9 @@ class _ProfileCard extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.avatarUrl,
+    required this.initial,
+    required this.uploadingAvatar,
+    required this.onAvatarTap,
     required this.verified,
     required this.rating,
     required this.reviews,
@@ -357,6 +564,9 @@ class _ProfileCard extends StatelessWidget {
   final String name;
   final String subtitle;
   final String avatarUrl;
+  final String initial;
+  final bool uploadingAvatar;
+  final VoidCallback onAvatarTap;
   final bool verified;
   final double rating;
   final int reviews;
@@ -372,47 +582,82 @@ class _ProfileCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFE8EDF4),
-                    image: avatarUrl.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(avatarUrl),
-                            fit: BoxFit.cover,
+          GestureDetector(
+            onTap: uploadingAvatar ? null : onAvatarTap,
+            child: SizedBox(
+              width: 100,
+              height: 100,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFE8EDF4),
+                      image: avatarUrl.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(avatarUrl),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: avatarUrl.isEmpty
+                        ? Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(
+                                color: Color(0xFF273D98),
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           )
                         : null,
                   ),
-                  child: avatarUrl.isEmpty
-                      ? const Icon(
-                          Icons.person,
-                          size: 52,
-                          color: Color(0xFF8EA0B8),
-                        )
-                      : null,
-                ),
-                Positioned(
-                  right: 2,
-                  bottom: 2,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                  Positioned(
+                    right: 2,
+                    bottom: 2,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF273D98),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: uploadingAvatar
+                          ? const Padding(
+                              padding: EdgeInsets.all(7),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 15,
+                              color: Colors.white,
+                            ),
                     ),
                   ),
-                ),
-              ],
+                  if (verified)
+                    Positioned(
+                      left: 2,
+                      bottom: 2,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -507,15 +752,16 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title, this.action, {this.onActionTap});
+  const _SectionTitle(this.title, {this.action, this.onActionTap});
 
   final String title;
-  final String action;
+  final String? action;
   final VoidCallback? onActionTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
@@ -525,20 +771,15 @@ class _SectionTitle extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        const Spacer(),
-        if (action.isNotEmpty)
-          InkWell(
+        if (action != null && onActionTap != null)
+          GestureDetector(
             onTap: onActionTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Text(
-                action,
-                style: const TextStyle(
-                  color: Color(0xFF3D5FD2),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                ),
+            child: Text(
+              action!,
+              style: const TextStyle(
+                color: Color(0xFF2F4DA0),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -550,75 +791,169 @@ class _SectionTitle extends StatelessWidget {
 class _AchievementRow extends StatelessWidget {
   const _AchievementRow({required this.badges});
 
-  final List<Map<String, dynamic>> badges;
+  final List<dynamic> badges;
+
+  IconData _getBadgeIcon(String? iconName) {
+    switch (iconName) {
+      case 'workspace_premium':
+        return Icons.workspace_premium_rounded;
+      case 'verified':
+        return Icons.verified_rounded;
+      case 'speed':
+        return Icons.speed_rounded;
+      case 'shield_person':
+        return Icons.shield_rounded;
+      case 'military_tech':
+        return Icons.military_tech_rounded;
+      default:
+        return Icons.emoji_events_rounded;
+    }
+  }
+
+  Color _getBadgeColor(String? accent) {
+    switch (accent) {
+      case 'yellow':
+        return const Color(0xFFF59E0B);
+      case 'blue':
+        return const Color(0xFF3B82F6);
+      case 'orange':
+        return const Color(0xFFF97316);
+      case 'emerald':
+        return const Color(0xFF10B981);
+      case 'purple':
+        return const Color(0xFF8B5CF6);
+      default:
+        return const Color(0xFF4F46E5);
+    }
+  }
+
+  Color _getBadgeBgColor(String? accent) {
+    switch (accent) {
+      case 'yellow':
+        return const Color(0xFFFEF3C7);
+      case 'blue':
+        return const Color(0xFFDBEAFE);
+      case 'orange':
+        return const Color(0xFFFFEDD5);
+      case 'emerald':
+        return const Color(0xFFD1FAE5);
+      case 'purple':
+        return const Color(0xFFEDE9FE);
+      default:
+        return const Color(0xFFEEF2F6);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final left = badges.isNotEmpty
-        ? badges.first['name']?.toString() ?? 'Achievement'
-        : 'Achievement';
-    final right = badges.length > 1
-        ? badges[1]['name']?.toString() ?? 'Achievement'
-        : 'Fast Responder';
+    return SizedBox(
+      height: 64,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: badges.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final badge = badges[index] as Map;
+          final name = badge['name']?.toString() ?? '';
+          final iconName = badge['icon']?.toString();
+          final accent = badge['accent']?.toString();
+          final unlocked = badge['unlocked'] == true;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _AchievementCard(
-            title: left,
-            icon: Icons.emoji_events_outlined,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _AchievementCard(title: right, icon: Icons.bolt_rounded),
-        ),
-      ],
+          final icon = _getBadgeIcon(iconName);
+          final color = _getBadgeColor(accent);
+          final bgColor = _getBadgeBgColor(accent);
+
+          return _AchievementCard(
+            name: name,
+            icon: icon,
+            color: color,
+            bgColor: bgColor,
+            unlocked: unlocked,
+          );
+        },
+      ),
     );
   }
 }
 
 class _AchievementCard extends StatelessWidget {
-  const _AchievementCard({required this.title, required this.icon});
+  const _AchievementCard({
+    required this.name,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+    required this.unlocked,
+  });
 
-  final String title;
+  final String name;
   final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final bool unlocked;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 128,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7EBF2)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F5F9),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: const Color(0xFF3F4F69)),
+    final cardContent = Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: unlocked ? bgColor : const Color(0xFFF1F5F9),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
+          child: Icon(
+            unlocked ? icon : Icons.lock_outline_rounded,
+            color: unlocked ? color : const Color(0xFF94A3B8),
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF141C34),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
             ),
           ),
-        ],
+        ),
+      ],
+    );
+
+    final mainContainer = Container(
+      width: 154,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: unlocked
+            ? Border.all(color: const Color(0xFFE7EBF2))
+            : null,
       ),
+      child: Opacity(
+        opacity: unlocked ? 1.0 : 0.55,
+        child: cardContent,
+      ),
+    );
+
+    if (unlocked) {
+      return mainContainer;
+    }
+
+    return CustomPaint(
+      painter: DashedRectPainter(
+        color: const Color(0xFFCAD4E0),
+        strokeWidth: 1.5,
+        gap: 3.0,
+        dashLength: 4.0,
+        radius: 16,
+      ),
+      child: mainContainer,
     );
   }
 }
@@ -768,5 +1103,244 @@ class _InfoTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _EditNameAndBioSheet extends StatefulWidget {
+  const _EditNameAndBioSheet({
+    required this.initialName,
+    required this.initialBio,
+  });
+
+  final String initialName;
+  final String initialBio;
+
+  @override
+  State<_EditNameAndBioSheet> createState() => _EditNameAndBioSheetState();
+}
+
+class _EditNameAndBioSheetState extends State<_EditNameAndBioSheet> {
+  late final TextEditingController nameController;
+  late final TextEditingController bioController;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.initialName);
+    bioController = TextEditingController(text: widget.initialBio);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    bioController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F9FB),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD5DCE8),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Edit Profile Info',
+                  style: TextStyle(
+                    color: Color(0xFF121C33),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _SheetField(
+                  label: 'Full Name',
+                  controller: nameController,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 10),
+                _SheetField(
+                  label: 'About Me',
+                  controller: bioController,
+                  maxLines: 4,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF2F4DA0),
+                          side: const BorderSide(color: Color(0xFFD1DAE8)),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context, <String, String>{
+                            'name': nameController.text.trim(),
+                            'bio': bioController.text.trim(),
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2F4DA0),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetField extends StatelessWidget {
+  const _SheetField({
+    required this.label,
+    this.controller,
+    this.maxLines = 1,
+    this.keyboardType,
+    this.textInputAction,
+  });
+
+  final String label;
+  final TextEditingController? controller;
+  final int maxLines;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: Color(0xFFD9E2EF)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: Color(0xFFD9E2EF)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: Color(0xFF2F4DA0), width: 1.4),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF6C7B94)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class DashedRectPainter extends CustomPainter {
+  DashedRectPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.gap,
+    required this.dashLength,
+    required this.radius,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+  final double dashLength;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Radius.circular(radius),
+      ));
+
+    final dashedPath = Path();
+    double distance = 0.0;
+    for (final metric in path.computeMetrics()) {
+      while (distance < metric.length) {
+        dashedPath.addPath(
+          metric.extractPath(distance, distance + dashLength),
+          Offset.zero,
+        );
+        distance += dashLength + gap;
+      }
+      distance = 0.0;
+    }
+
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant DashedRectPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.gap != gap ||
+        oldDelegate.dashLength != dashLength ||
+        oldDelegate.radius != radius;
   }
 }

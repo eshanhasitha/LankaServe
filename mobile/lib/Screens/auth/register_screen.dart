@@ -60,10 +60,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     const Color brand = Color(0xFF243F97);
     const Color heading = Color(0xFF0B1A44);
     const Color body = Color(0xFF66758E);
-    final s = UiScale.factor(context, min: 0.86, max: 1.05);
-    final hPad = UiScale.size(context, 28, min: 16, max: 30);
-    final topPad = UiScale.size(context, 18, min: 12, max: 22);
-    final bottomPad = UiScale.size(context, 24, min: 18, max: 30);
+
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+
+    final s = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
+    final hPad = UiScale.size(context, 28, min: 16, max: 30) * hs;
+    final topPad = UiScale.size(context, 18, min: 10, max: 22) * hs;
+    final bottomPad = UiScale.size(context, 24, min: 14, max: 30) * hs;
+
+    double space(double value, {double min = 4, double max = double.infinity}) {
+      return (UiScale.size(context, value, min: min, max: max) * hs).clamp(min, max);
+    }
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -76,41 +84,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildHeader(brand, heading, s),
-                SizedBox(height: UiScale.size(context, 18, min: 12, max: 20)),
+                SizedBox(height: space(18, min: 6, max: 20)),
                 _buildLanguageSelector(body, brand, s),
-                SizedBox(height: UiScale.size(context, 34, min: 18, max: 34)),
+                SizedBox(height: space(34, min: 10, max: 34)),
                 Text(
                   'Create Account',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: heading,
-                    fontSize: UiScale.size(context, 58 / 2, min: 25, max: 30),
+                    fontSize: (UiScale.size(context, 58 / 2, min: 25, max: 30) * hs).clamp(18.0, 30.0),
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 10, min: 6, max: 12)),
+                SizedBox(height: space(10, min: 4, max: 12)),
                 Text(
                   'Join the trusted community of service providers\nand customers in Sri Lanka.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: body,
-                    fontSize: UiScale.size(context, 19 / 1.3, min: 14, max: 16),
+                    fontSize: (UiScale.size(context, 19 / 1.3, min: 14, max: 16) * hs).clamp(11.0, 16.0),
                     height: 1.4,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 28, min: 18, max: 30)),
+                SizedBox(height: space(28, min: 10, max: 30)),
                 Text(
                   'I WANT TO REGISTER AS:',
                   style: TextStyle(
-                    color: Color(0xFF8EA0B8),
-                    fontSize: UiScale.size(context, 22 / 2, min: 10, max: 12),
+                    color: const Color(0xFF8EA0B8),
+                    fontSize: (UiScale.size(context, 22 / 2, min: 10, max: 12) * hs).clamp(8.0, 12.0),
                     letterSpacing: 1.8,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 12, min: 8, max: 14)),
+                SizedBox(height: space(12, min: 6, max: 14)),
                 Row(
                   children: [
                     Expanded(
@@ -123,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(width: UiScale.size(context, 14, min: 8, max: 14)),
+                    SizedBox(width: space(14, min: 6, max: 14)),
                     Expanded(
                       child: _roleCard(
                         selected: _selectedType == RegisterType.provider,
@@ -137,41 +145,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
                 if (_isProvider) ...[
-                  SizedBox(height: UiScale.size(context, 12, min: 8, max: 14)),
+                  SizedBox(height: space(12, min: 4, max: 14)),
                   Text(
                     'Your selected role will determine your dashboard experience.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFF98A7BC),
-                      fontSize: UiScale.size(context, 13.5, min: 11, max: 14),
+                      color: const Color(0xFF98A7BC),
+                      fontSize: (UiScale.size(context, 13.5, min: 11, max: 14) * hs).clamp(9.0, 14.0),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
-                SizedBox(height: UiScale.size(context, 16, min: 12, max: 18)),
+                SizedBox(height: space(16, min: 8, max: 18)),
                 const _FieldLabel('Full Name'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _AppInput(
                   controller: _fullNameController,
                   hint: 'Enter your full name',
                   textInputAction: TextInputAction.next,
                 ),
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 const _FieldLabel('Email Address'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _AppInput(
                   controller: _emailController,
                   hint: 'example@mail.com',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                 ),
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 const _FieldLabel('Phone Number'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _buildPhoneInput(),
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 const _FieldLabel('Password'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _AppInput(
                   controller: _passwordController,
                   hint: '••••••••',
@@ -189,9 +197,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 const _FieldLabel('Confirm Password'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _AppInput(
                   controller: _confirmPasswordController,
                   hint: '••••••••',
@@ -210,9 +218,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 const _FieldLabel('Address'),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _AppInput(
                   controller: _addressController,
                   hint: _isProvider
@@ -223,11 +231,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textInputAction: TextInputAction.newline,
                 ),
                 if (_isProvider) ...[
-                  SizedBox(height: UiScale.size(context, 18, min: 12, max: 20)),
+                  SizedBox(height: space(18, min: 8, max: 20)),
                   _buildProviderDivider(),
-                  SizedBox(height: UiScale.size(context, 16, min: 12, max: 18)),
+                  SizedBox(height: space(16, min: 8, max: 18)),
                   const _FieldLabel('Service Category'),
-                  SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                  SizedBox(height: space(8, min: 4, max: 10)),
                   GestureDetector(
                     onTap: _selectServiceCategory,
                     child: AbsorbPointer(
@@ -245,9 +253,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                  SizedBox(height: space(14, min: 6, max: 16)),
                   const _FieldLabel('Service Area'),
-                  SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                  SizedBox(height: space(8, min: 4, max: 10)),
                   _AppInput(
                     controller: _serviceAreaController,
                     hint: 'Enter your city or district (e.g., Colombo,\nKandy)',
@@ -257,29 +265,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   Padding(
                     padding: EdgeInsets.only(
-                      top: UiScale.size(context, 6, min: 4, max: 8),
+                      top: space(6, min: 3, max: 8),
                       left: 2,
                     ),
                     child: Text(
                       '? You will receive service requests from these locations.',
                       style: TextStyle(
-                        color: Color(0xFF9AA8BC),
-                        fontSize: UiScale.size(context, 13.5, min: 11, max: 14),
+                        color: const Color(0xFF9AA8BC),
+                        fontSize: (UiScale.size(context, 13.5, min: 11, max: 14) * hs).clamp(9.0, 14.0),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ],
-                SizedBox(height: UiScale.size(context, 14, min: 10, max: 16)),
+                SizedBox(height: space(14, min: 6, max: 16)),
                 _buildTerms(body),
-                SizedBox(height: UiScale.size(context, 18, min: 14, max: 20)),
+                SizedBox(height: space(18, min: 8, max: 20)),
                 SizedBox(
-                  height: UiScale.size(context, 64, min: 56, max: 66),
+                  height: (UiScale.size(context, 64, min: 56, max: 66) * hs).clamp(42.0, 66.0),
                   child: ElevatedButton(
                     onPressed: _loading ? null : _handleRegister,
                     style: AppUiStyles.primaryButton(
-                      height: UiScale.size(context, 64, min: 56, max: 66),
-                      radius: BorderRadius.circular(20),
+                      height: (UiScale.size(context, 64, min: 56, max: 66) * hs).clamp(42.0, 66.0),
+                      radius: BorderRadius.circular((20 * (s / 0.8)).clamp(12.0, 20.0)),
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -296,14 +304,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             _isProvider
                                 ? 'Register as Service Provider'
                                 : 'Register',
-                            style: const TextStyle(
-                              fontSize: 36 / 2,
+                            style: TextStyle(
+                              fontSize: (18 * hs).clamp(13.0, 18.0),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 20, min: 16, max: 22)),
+                SizedBox(height: space(20, min: 8, max: 22)),
                 Row(
                   children: [
                     const Expanded(
@@ -311,13 +319,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: UiScale.size(context, 12, min: 8, max: 14),
+                        horizontal: space(12, min: 6, max: 14),
                       ),
                       child: Text(
                         _isProvider ? 'OR CONTINUE WITH' : 'OR',
                         style: TextStyle(
-                          color: Color(0xFF8EA0B8),
-                          fontSize: UiScale.size(context, 13, min: 11, max: 13),
+                          color: const Color(0xFF8EA0B8),
+                          fontSize: (UiScale.size(context, 13, min: 11, max: 13) * hs).clamp(8.0, 13.0),
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.7,
                         ),
@@ -328,30 +336,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: UiScale.size(context, 18, min: 14, max: 20)),
+                SizedBox(height: space(18, min: 8, max: 20)),
                 SizedBox(
-                  height: UiScale.size(context, 58, min: 52, max: 60),
+                  height: (UiScale.size(context, 58, min: 52, max: 60) * hs).clamp(40.0, 60.0),
                   child: OutlinedButton(
                     onPressed: _onGoogleRegister,
                     style:
                         AppUiStyles.neutralOutlineButton(
-                          height: UiScale.size(context, 58, min: 52, max: 60),
-                          radius: BorderRadius.circular(16),
+                          height: (UiScale.size(context, 58, min: 52, max: 60) * hs).clamp(40.0, 60.0),
+                          radius: BorderRadius.circular((16 * (s / 0.8)).clamp(10.0, 16.0)),
                         ).copyWith(
                           backgroundColor: WidgetStateProperty.all(
                             const Color(0xFFF8F9FB),
                           ),
                         ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        GoogleLogo(size: 26),
-                        SizedBox(width: 14),
+                        GoogleLogo(size: (26 * hs).clamp(18.0, 26.0)),
+                        const SizedBox(width: 14),
                         Text(
                           'Sign up with Google',
                           style: TextStyle(
-                            color: Color(0xFF364862),
-                            fontSize: 17,
+                            color: const Color(0xFF364862),
+                            fontSize: (17 * hs).clamp(13.0, 17.0),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -362,19 +370,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (_isProvider)
                   Padding(
                     padding: EdgeInsets.only(
-                      top: UiScale.size(context, 12, min: 8, max: 14),
+                      top: space(12, min: 4, max: 14),
                     ),
                     child: Text(
                       'You will be registered as a Service Provider.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFF9AA8BC),
-                        fontSize: UiScale.size(context, 13.5, min: 11, max: 14),
+                        color: const Color(0xFF9AA8BC),
+                        fontSize: (UiScale.size(context, 13.5, min: 11, max: 14) * hs).clamp(9.0, 14.0),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                SizedBox(height: UiScale.size(context, 20, min: 16, max: 22)),
+                SizedBox(height: space(20, min: 8, max: 22)),
                 Center(
                   child: TextButton(
                     onPressed: () => Navigator.pushReplacementNamed(
@@ -387,26 +395,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextSpan(
                             text: 'Already have an account? ',
                             style: TextStyle(
-                              color: Color(0xFF5F6F89),
-                              fontSize: UiScale.size(
+                              color: const Color(0xFF5F6F89),
+                              fontSize: (UiScale.size(
                                 context,
                                 17,
                                 min: 15,
                                 max: 17,
-                              ),
+                              ) * hs).clamp(12.0, 17.0),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           TextSpan(
                             text: 'Login',
                             style: TextStyle(
-                              color: Color(0xFF243F97),
-                              fontSize: UiScale.size(
+                              color: const Color(0xFF243F97),
+                              fontSize: (UiScale.size(
                                 context,
                                 17,
                                 min: 15,
                                 max: 17,
-                              ),
+                              ) * hs).clamp(12.0, 17.0),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -428,11 +436,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Column(
         children: [
           Container(
-            width: (98 * scale).clamp(80, 104),
-            height: (98 * scale).clamp(80, 104),
+            width: (98 * scale).clamp(48.0, 104.0),
+            height: (98 * scale).clamp(48.0, 104.0),
             decoration: BoxDecoration(
               color: brand,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular((24 * (scale / 0.8)).clamp(12.0, 24.0)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x25000000),
@@ -445,15 +453,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Icon(
               Icons.handshake_rounded,
               color: Colors.white,
-              size: (52 * scale).clamp(40, 54),
+              size: (52 * scale).clamp(26.0, 54.0),
             ),
           ),
-          SizedBox(height: (10 * scale).clamp(8, 12)),
+          SizedBox(height: (10 * scale).clamp(4.0, 12.0)),
           Text(
             'LankaServe',
             style: TextStyle(
               color: heading,
-              fontSize: (25 / 1.1 * scale).clamp(20, 24),
+              fontSize: (25 / 1.1 * scale).clamp(16.0, 24.0),
               fontWeight: FontWeight.w800,
               letterSpacing: -0.2,
             ),
@@ -466,9 +474,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildLanguageSelector(Color body, Color brand, double scale) {
     return Center(
       child: Container(
-        width: (256 * scale).clamp(220, 280),
-        height: (54 * scale).clamp(48, 56),
-        padding: EdgeInsets.all((6 * scale).clamp(4, 6)),
+        width: (256 * scale).clamp(160.0, 280.0),
+        height: (54 * scale).clamp(36.0, 56.0),
+        padding: EdgeInsets.all((6 * scale).clamp(3.0, 6.0)),
         decoration: BoxDecoration(
           color: const Color(0xFFD6DCE5),
           borderRadius: BorderRadius.circular(999),
@@ -503,7 +511,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               label,
               style: TextStyle(
                 color: selected ? brand : body,
-                fontSize: (17 * scale).clamp(14, 18),
+                fontSize: (17 * scale).clamp(11.0, 18.0),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -519,16 +527,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular((20 * scale).clamp(16, 22)),
+      borderRadius: BorderRadius.circular((20 * scale).clamp(10.0, 22.0)),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        height: (102 * scale).clamp(88, 104),
+        height: (102 * scale).clamp(56.0, 104.0),
         decoration: BoxDecoration(
           color: const Color(0xFFF8F9FB),
-          borderRadius: BorderRadius.circular((20 * scale).clamp(16, 22)),
+          borderRadius: BorderRadius.circular((20 * scale).clamp(10.0, 22.0)),
           border: Border.all(
             color: selected ? const Color(0xFF2846A2) : const Color(0xFFDCE3ED),
             width: selected ? 2.2 : 1.3,
@@ -539,10 +549,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             Icon(
               icon,
-              size: (28 * scale).clamp(22, 30),
+              size: (28 * scale).clamp(16.0, 30.0),
               color: const Color(0xFF93A2B8),
             ),
-            SizedBox(height: (6 * scale).clamp(4, 7)),
+            SizedBox(height: (6 * scale).clamp(2.0, 7.0)),
             Text(
               label,
               style: TextStyle(
@@ -552,7 +562,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 fontSize:
                     ((label == 'Service Provider' ? 31 / 2.2 : 32 / 2.1) *
                             scale)
-                        .clamp(13, 16),
+                        .clamp(10.0, 16.0),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -563,27 +573,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildPhoneInput() {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
     return Container(
-      height: (70 * scale).clamp(60, 72),
+      height: (70 * scale).clamp(42.0, 72.0),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular((18 * (scale / 0.8)).clamp(10.0, 18.0)),
         border: Border.all(color: const Color(0xFFD3DAE5)),
       ),
       child: Row(
         children: [
           Container(
-            width: (78 * scale).clamp(66, 82),
+            width: (78 * scale).clamp(50.0, 82.0),
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               border: Border(right: BorderSide(color: Color(0xFFD3DAE5))),
             ),
-            child: const Text(
+            child: Text(
               '+94',
               style: TextStyle(
-                color: Color(0xFF62728C),
-                fontSize: 17,
+                color: const Color(0xFF62728C),
+                fontSize: (17 * hs).clamp(13.0, 17.0),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -593,20 +605,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              style: const TextStyle(
-                color: Color(0xFF2B3B56),
-                fontSize: 17,
+              style: TextStyle(
+                color: const Color(0xFF2B3B56),
+                fontSize: (17 * hs).clamp(13.0, 17.0),
                 fontWeight: FontWeight.w500,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: '77 123 4567',
                 hintStyle: TextStyle(
-                  color: Color(0xFF93A2B8),
-                  fontSize: 17,
+                  color: const Color(0xFF93A2B8),
+                  fontSize: (17 * hs).clamp(13.0, 17.0),
                   fontWeight: FontWeight.w500,
                 ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: EdgeInsets.symmetric(horizontal: (16 * hs).clamp(10.0, 16.0)),
               ),
             ),
           ),
@@ -616,29 +628,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildProviderDivider() {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
     return Row(
       children: [
         const Expanded(
           child: Divider(color: Color(0xFFD3DAE4), thickness: 1.2),
         ),
-        SizedBox(width: (10 * scale).clamp(8, 12)),
+        SizedBox(width: (10 * scale).clamp(6.0, 12.0)),
         DecoratedBox(
-          decoration: BoxDecoration(color: Color(0xFFF3F4F7)),
+          decoration: const BoxDecoration(color: Color(0xFFF3F4F7)),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+            padding: EdgeInsets.symmetric(horizontal: (8 * hs).clamp(4.0, 8.0), vertical: 1),
             child: Text(
               'PROVIDER DETAILS',
               style: TextStyle(
-                color: Color(0xFF8EA0B8),
-                fontSize: (12 * scale).clamp(10, 12),
+                color: const Color(0xFF8EA0B8),
+                fontSize: (12 * scale).clamp(8.0, 12.0),
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.8,
               ),
             ),
           ),
         ),
-        SizedBox(width: (10 * scale).clamp(8, 12)),
+        SizedBox(width: (10 * scale).clamp(6.0, 12.0)),
         const Expanded(
           child: Divider(color: Color(0xFFD3DAE4), thickness: 1.2),
         ),
@@ -647,7 +661,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildTerms(Color body) {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
+    final checkSize = (26 * hs).clamp(20.0, 26.0);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -656,8 +673,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             margin: const EdgeInsets.only(top: 2),
-            width: 26,
-            height: 26,
+            width: checkSize,
+            height: checkSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: _termsAccepted
@@ -666,11 +683,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               border: Border.all(color: const Color(0xFFC8D1DE)),
             ),
             child: _termsAccepted
-                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                ? Icon(Icons.check, size: (16 * hs).clamp(12.0, 16.0), color: Colors.white)
                 : null,
           ),
         ),
-        SizedBox(width: (10 * scale).clamp(8, 12)),
+        SizedBox(width: (10 * scale).clamp(6.0, 12.0)),
         Expanded(
           child: Text.rich(
             TextSpan(
@@ -681,7 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       : 'By registering, I agree to LankaServe\'s ',
                   style: TextStyle(
                     color: body,
-                    fontSize: (14 * scale).clamp(12, 14),
+                    fontSize: (14 * scale).clamp(10.0, 14.0),
                     height: 1.45,
                     fontWeight: FontWeight.w500,
                   ),
@@ -689,9 +706,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextSpan(
                   text: 'Service Terms',
                   style: TextStyle(
-                    color: Color(0xFF34435C),
+                    color: const Color(0xFF34435C),
                     decoration: TextDecoration.underline,
-                    fontSize: (14 * scale).clamp(12, 14),
+                    fontSize: (14 * scale).clamp(10.0, 14.0),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -699,16 +716,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   text: ' and ',
                   style: TextStyle(
                     color: body,
-                    fontSize: (14 * scale).clamp(12, 14),
+                    fontSize: (14 * scale).clamp(10.0, 14.0),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 TextSpan(
                   text: 'Privacy Policy.',
                   style: TextStyle(
-                    color: Color(0xFF34435C),
+                    color: const Color(0xFF34435C),
                     decoration: TextDecoration.underline,
-                    fontSize: (14 * scale).clamp(12, 14),
+                    fontSize: (14 * scale).clamp(10.0, 14.0),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1034,12 +1051,14 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
     return Text(
       text,
       style: TextStyle(
         color: const Color(0xFF34435C),
-        fontSize: (16 * scale).clamp(14, 17),
+        fontSize: (16 * scale).clamp(11.0, 17.0),
         fontWeight: FontWeight.w700,
       ),
     );
@@ -1071,7 +1090,9 @@ class _AppInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scale = UiScale.factor(context, min: 0.86, max: 1.05);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
     final bool isMultiline =
         maxLines > 1 ||
         minLines > 1 ||
@@ -1089,7 +1110,7 @@ class _AppInput extends StatelessWidget {
       textInputAction: textInputAction,
       style: TextStyle(
         color: const Color(0xFF2B3B56),
-        fontSize: (18 * scale).clamp(15, 18),
+        fontSize: (18 * scale).clamp(13.0, 18.0),
         fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
@@ -1098,22 +1119,22 @@ class _AppInput extends StatelessWidget {
         hintText: hint,
         hintStyle: TextStyle(
           color: hintColor,
-          fontSize: (18 * scale).clamp(15, 18),
+          fontSize: (18 * scale).clamp(13.0, 18.0),
           height: 1.38,
           letterSpacing: obscureText ? 2.0 : 0,
           fontWeight: FontWeight.w500,
         ),
         suffixIcon: suffix,
         contentPadding: EdgeInsets.symmetric(
-          horizontal: (18 * scale).clamp(14, 18),
-          vertical: (18 * scale).clamp(14, 18),
+          horizontal: (18 * scale).clamp(10.0, 18.0),
+          vertical: (18 * scale).clamp(10.0, 18.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular((18 * (scale / 0.8)).clamp(10.0, 18.0)),
           borderSide: const BorderSide(color: Color(0xFFD3DAE5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular((18 * (scale / 0.8)).clamp(10.0, 18.0)),
           borderSide: const BorderSide(color: Color(0xFF9CADC3), width: 1.3),
         ),
       ),

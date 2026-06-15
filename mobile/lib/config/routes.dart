@@ -4,6 +4,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/common/chat_conversation_screen.dart';
 import '../screens/common/chat_screen.dart';
+import '../screens/common/help_center_screen.dart';
 import '../screens/common/notifications_screen.dart';
 import '../screens/common/profile_screen.dart';
 import '../screens/customer/customer_dashboard.dart';
@@ -34,6 +35,7 @@ class AppRoutes {
   static const String chatConversation = '/chat/conversation';
   static const String notifications = '/notifications';
   static const String profile = '/profile';
+  static const String helpCenter = '/help-center';
 
   static const String customerDashboard = '/customer/dashboard';
   static const String postJob = '/customer/post-job';
@@ -58,6 +60,7 @@ class AppRoutes {
     register: (_) => const RegisterScreen(),
     chat: (_) => const ChatScreen(),
     chatConversation: (_) => const ChatConversationScreen(),
+    helpCenter: (_) => const HelpCenterScreen(),
     notifications: (_) => const NotificationsScreen(),
     profile: (_) => const ProfileScreen(),
     customerDashboard: (_) => const CustomerDashboard(),

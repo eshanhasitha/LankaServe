@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
     const bgColor = Color(0xFFE8E9ED);
     const brandBlue = Color(0xFF25429A);
     const subtitleColor = Color(0xFF6F7785);
-    final compactScale = UiScale.factor(context, min: 0.78, max: 0.92);
+    final compactScale = UiScale.factor(context, min: 0.76, max: 0.90);
 
     return Scaffold(
       backgroundColor: bgColor,

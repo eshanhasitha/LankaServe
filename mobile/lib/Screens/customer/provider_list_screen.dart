@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../config/ui_styles.dart';
 import '../../services/provider_service.dart';
@@ -206,7 +207,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
 
   String _providerAvatar(Map<String, dynamic> provider) {
     final user = provider['userId'] as Map<String, dynamic>?;
-    return user?['profileImage']?.toString() ?? '';
+    return AppConstants.normalizeUrl(user?['profileImage']?.toString());
   }
 
   String _providerCategory(Map<String, dynamic> provider) {

@@ -46,7 +46,21 @@ class MessageService {
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> contactSupportAgent({
+    required String content,
+  }) async {
+    final res = await _api.post(
+      '/messages/contact-agent',
+      body: {'content': content},
+    );
+    return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
   Future<void> markThreadRead(String threadId) async {
     await _api.put('/messages/read/$threadId');
+  }
+
+  Future<void> markAllAsRead() async {
+    await _api.put('/messages/read-all');
   }
 }

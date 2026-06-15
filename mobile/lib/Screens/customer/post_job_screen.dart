@@ -60,7 +60,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final compactScale = UiScale.factor(context, min: 0.80, max: 0.93);
+    final compactScale = UiScale.factor(context, min: 0.76, max: 0.90);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6FC),
