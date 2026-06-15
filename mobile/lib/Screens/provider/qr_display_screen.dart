@@ -553,11 +553,27 @@ class _CustomerCard extends StatelessWidget {
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(17),
-              onTap: () => Navigator.pushNamed(
-                context,
-                AppRoutes.chat,
-                arguments: const {'fromProvider': true},
-              ),
+              onTap: () {
+                final customerId = _resolveCustomerUserId(customer);
+                if (customerId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Customer info unavailable.')),
+                  );
+                  return;
+                }
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.chatConversation,
+                  arguments: {
+                    'counterpartId': customerId,
+                    'counterpartName': name,
+                    'counterpartAvatar': avatarUrl,
+                    'isProvider': false,
+                    if ((job['_id']?.toString() ?? '').isNotEmpty)
+                      'jobId': job['_id'].toString(),
+                  },
+                );
+              },
               child: const Icon(
                 Icons.chat_bubble_outline_rounded,
                 color: Color(0xFF5A6B86),
@@ -568,6 +584,24 @@ class _CustomerCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _resolveCustomerUserId(Map<String, dynamic>? customer) {
+    if (customer == null) return '';
+    // If customerId is a populated user object, _id is the user ID
+    final directId = customer['_id']?.toString().trim() ?? '';
+    if (directId.isNotEmpty) return directId;
+    final altId = customer['id']?.toString().trim() ?? '';
+    if (altId.isNotEmpty) return altId;
+    // Nested userId (if customer doc has a separate userId ref)
+    final userId = customer['userId'];
+    if (userId is Map<String, dynamic>) {
+      return userId['_id']?.toString().trim() ?? '';
+    }
+    if (userId is String && userId.trim().isNotEmpty) {
+      return userId.trim();
+    }
+    return '';
   }
 }
 

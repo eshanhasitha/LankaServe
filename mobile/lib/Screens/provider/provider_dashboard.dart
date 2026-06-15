@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../config/constants.dart';
 import '../../config/routes.dart';
+import '../../services/api_service.dart';
 import '../../services/job_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/provider_service.dart';
 import '../../widgets/provider_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class ProviderDashboard extends StatefulWidget {
@@ -16,18 +22,34 @@ class ProviderDashboard extends StatefulWidget {
 class _ProviderDashboardState extends State<ProviderDashboard> {
   final ProviderService _providerService = ProviderService();
   final JobService _jobService = JobService();
+  final NotificationService _notificationService = NotificationService();
+  final ApiService _apiService = ApiService();
 
   bool _loading = true;
+  bool _hasUnreadNotifications = false;
   String? _error;
   Map<String, dynamic> _dashboard = <String, dynamic>{};
   Map<String, dynamic> _profile = <String, dynamic>{};
+  Map<String, dynamic> _me = <String, dynamic>{};
   List<Map<String, dynamic>> _requests = <Map<String, dynamic>>[];
   String? _acceptingJobId;
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     _loadDashboard();
+    _loadUnreadNotifications();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _loadUnreadNotifications(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboard() async {
@@ -41,6 +63,7 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
         _providerService.getProviderDashboard(),
         _providerService.getProviderMe(),
         _providerService.getJobRequests(limit: 10),
+        _apiService.get('/users/me'),
       ]);
 
       final dashboard =
@@ -50,6 +73,10 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
       var requests = (results[2] as List<dynamic>)
           .whereType<Map<String, dynamic>>()
           .toList();
+      final meRes =
+          (results[3] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final me =
+          (meRes['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
       if (requests.isEmpty) {
         requests = await _providerService.getBrowseJobs(limit: 10);
@@ -60,6 +87,7 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
         _dashboard = dashboard;
         _profile = profile;
         _requests = requests;
+        _me = me;
       });
     } catch (e) {
       if (!mounted) return;
@@ -113,20 +141,46 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
   }
 
   String _providerName() {
+    final name = _me['name']?.toString().trim() ?? '';
+    if (name.isNotEmpty) return name;
     final user = _profile['userId'];
-    if (user is Map<String, dynamic>) {
-      final name = user['name']?.toString().trim() ?? '';
-      if (name.isNotEmpty) return name;
+    if (user is Map) {
+      final pName = user['name']?.toString().trim() ?? '';
+      if (pName.isNotEmpty) return pName;
     }
     return 'Provider';
   }
 
   String _providerAvatarUrl() {
+    final avatar = _me['profileImage']?.toString() ?? '';
+    if (avatar.isNotEmpty) return AppConstants.normalizeUrl(avatar);
     final user = _profile['userId'];
-    if (user is Map<String, dynamic>) {
-      return user['profileImage']?.toString() ?? '';
+    if (user is Map) {
+      final uAvatar = user['profileImage']?.toString() ?? '';
+      if (uAvatar.isNotEmpty) return AppConstants.normalizeUrl(uAvatar);
     }
     return '';
+  }
+
+  String _providerInitial() {
+    final name = _providerName().trim();
+    if (name.isEmpty || name.toLowerCase() == 'provider') return 'P';
+    return String.fromCharCode(name.runes.first).toUpperCase();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final notifications = await _notificationService.fetchNotifications();
+      final hasUnread = notifications.any((item) {
+        final read = item['isRead'];
+        if (read is bool) return !read;
+        return read?.toString().toLowerCase() != 'true';
+      });
+      if (!mounted) return;
+      setState(() => _hasUnreadNotifications = hasUnread);
+    } catch (_) {
+      // Notification polling must not interrupt dashboard usage.
+    }
   }
 
   Future<void> _acceptJob(Map<String, dynamic> job) async {
@@ -234,13 +288,20 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
             children: [
               _Header(
                 avatarUrl: _providerAvatarUrl(),
-                onAvatarTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.providerProfileEdit),
-                onNotificationTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.notifications,
-                  arguments: const {'fromProvider': true},
-                ),
+                avatarInitial: _providerInitial(),
+                hasUnreadNotifications: _hasUnreadNotifications,
+                onAvatarTap: () async {
+                  await Navigator.pushNamed(context, AppRoutes.profile);
+                  if (mounted) _loadDashboard();
+                },
+                onNotificationTap: () async {
+                  await Navigator.pushNamed(
+                    context,
+                    AppRoutes.notifications,
+                    arguments: const {'fromProvider': true},
+                  );
+                  if (mounted) _loadUnreadNotifications();
+                },
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -250,14 +311,7 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
                     padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
                     children: [
                       if (_loading)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 80),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF273D98),
-                            ),
-                          ),
-                        )
+                        const _DashboardSkeleton()
                       else if (_error != null)
                         _InfoTile(message: _error!)
                       else ...[
@@ -324,11 +378,15 @@ class _ProviderDashboardState extends State<ProviderDashboard> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.avatarUrl,
+    required this.avatarInitial,
+    required this.hasUnreadNotifications,
     required this.onAvatarTap,
     required this.onNotificationTap,
   });
 
   final String avatarUrl;
+  final String avatarInitial;
+  final bool hasUnreadNotifications;
   final VoidCallback onAvatarTap;
   final VoidCallback onNotificationTap;
 
@@ -355,6 +413,7 @@ class _Header extends StatelessWidget {
           ),
           _CircleIconButton(
             icon: Icons.notifications_none_rounded,
+            showDot: hasUnreadNotifications,
             onTap: onNotificationTap,
           ),
           const SizedBox(width: 8),
@@ -366,17 +425,85 @@ class _Header extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: const Color(0xFFEBE2D5), width: 2),
-                image: DecorationImage(
-                  image: NetworkImage(
-                    avatarUrl.isNotEmpty
-                        ? avatarUrl
-                        : 'https://ui-avatars.com/api/?name=Provider',
-                  ),
-                  fit: BoxFit.cover,
-                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: avatarUrl.isNotEmpty
+                    ? Image.network(
+                        avatarUrl,
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 38,
+                          height: 38,
+                          color: const Color(0xFFE8EDF4),
+                          alignment: Alignment.center,
+                          child: Text(
+                            avatarInitial,
+                            style: const TextStyle(
+                              color: Color(0xFF273D98),
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 38,
+                        height: 38,
+                        color: const Color(0xFFE8EDF4),
+                        alignment: Alignment.center,
+                        child: Text(
+                          avatarInitial,
+                          style: const TextStyle(
+                            color: Color(0xFF273D98),
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: [
+          ShimmerBox(height: 172, borderRadius: BorderRadius.circular(36)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 132, borderRadius: BorderRadius.circular(22))),
+              const SizedBox(width: 12),
+              Expanded(child: ShimmerBox(height: 132, borderRadius: BorderRadius.circular(22))),
+              const SizedBox(width: 12),
+              Expanded(child: ShimmerBox(height: 132, borderRadius: BorderRadius.circular(22))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ShimmerBox(height: 198, borderRadius: BorderRadius.circular(24)),
+          const SizedBox(height: 14),
+          ShimmerBox(height: 28, borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 10),
+          ...List.generate(
+            3,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: ShimmerBox(height: 118, borderRadius: BorderRadius.circular(18)),
+            ),
+          ),
+          const SizedBox(height: 86),
         ],
       ),
     );
@@ -911,7 +1038,7 @@ class _RequestCard extends StatelessWidget {
         : num.tryParse(job['price']?.toString() ?? '0') ?? 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -943,7 +1070,7 @@ class _RequestCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: Color(0xFF141C34),
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -952,7 +1079,7 @@ class _RequestCard extends StatelessWidget {
                       _locationLabel(),
                       style: const TextStyle(
                         color: Color(0xFF66758E),
-                        fontSize: 12.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -967,7 +1094,7 @@ class _RequestCard extends StatelessWidget {
                     'LKR ${_formatCurrency(amount)}',
                     style: const TextStyle(
                       color: Color(0xFF141C34),
-                      fontSize: 17,
+                      fontSize: 15.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -976,7 +1103,7 @@ class _RequestCard extends StatelessWidget {
                     _budgetTypeLabel(),
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
-                      fontSize: 10.5,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -992,7 +1119,7 @@ class _RequestCard extends StatelessWidget {
                   onTap: onViewDetails,
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    height: 48,
+                    height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       border: Border.all(color: const Color(0xFFD4DCE8)),
@@ -1002,7 +1129,7 @@ class _RequestCard extends StatelessWidget {
                       'View Details',
                       style: TextStyle(
                         color: Color(0xFF43556F),
-                        fontSize: 15.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1015,7 +1142,7 @@ class _RequestCard extends StatelessWidget {
                   onTap: accepting ? null : onAccept,
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    height: 48,
+                    height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: const Color(0xFF253E97),
@@ -1036,7 +1163,7 @@ class _RequestCard extends StatelessWidget {
                             'Accept Job',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15.5,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1079,10 +1206,15 @@ class _InfoTile extends StatelessWidget {
 }
 
 class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, required this.onTap});
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+    this.showDot = false,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -1102,19 +1234,20 @@ class _CircleIconButton extends StatelessWidget {
             child: Icon(icon, color: const Color(0xFF4B5B74), size: 22),
           ),
         ),
-        Positioned(
-          right: 9,
-          top: 8,
-          child: Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFF3F5F8), width: 1),
+        if (showDot)
+          Positioned(
+            right: 9,
+            top: 8,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF3F5F8), width: 1),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

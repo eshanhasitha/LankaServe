@@ -19,7 +19,7 @@ class _ProviderBottomNavState extends State<ProviderBottomNav> {
   Timer? _pollTimer;
 
   @override
-  void initState() {
+  void initState() {  
     super.initState();
     MessageBadgeService.instance.refreshUnread();
     _pollTimer = Timer.periodic(
@@ -36,7 +36,7 @@ class _ProviderBottomNavState extends State<ProviderBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = UiScale.factor(context, min: 0.82, max: 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final navHeight = (66 * scale).clamp(62, 72).toDouble();
 
@@ -121,7 +121,7 @@ class _ProviderBottomNavState extends State<ProviderBottomNav> {
     Object? routeArgs,
   }) {
     final active = index == widget.activeIndex;
-    final scale = UiScale.factor(context, min: 0.82, max: 1.0);
+    final scale = UiScale.factor(context, min: 0.76, max: 0.90);
 
     return InkWell(
       onTap: () {

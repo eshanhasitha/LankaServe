@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../config/ui_styles.dart';
 import '../../services/api_service.dart';
@@ -7,6 +8,7 @@ import '../../services/job_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/provider_service.dart';
 import '../../widgets/customer_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class CustomerDashboard extends StatefulWidget {
@@ -186,7 +188,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return name.isEmpty ? 'Customer' : name;
   }
 
-  String _avatarUrl() => _me['profileImage']?.toString() ?? '';
+  String _avatarUrl() => AppConstants.normalizeUrl(_me['profileImage']?.toString());
 
   List<Map<String, dynamic>> _activeJobs() {
     const inactiveStatuses = <String>{
@@ -394,12 +396,10 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                     slivers: [
                       const SliverToBoxAdapter(child: SizedBox(height: 12)),
                       if (_loading)
-                        const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF273D98),
-                            ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            child: _CustomerDashboardSkeleton(),
                           ),
                         )
                       else if (_error != null)
@@ -1673,6 +1673,85 @@ class _InfoTile extends StatelessWidget {
               child: Text(actionLabel!),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerDashboardSkeleton extends StatelessWidget {
+  const _CustomerDashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: [
+          ShimmerBox(height: 148, borderRadius: BorderRadius.circular(20)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 98, borderRadius: BorderRadius.circular(16))),
+              const SizedBox(width: 10),
+              Expanded(child: ShimmerBox(height: 98, borderRadius: BorderRadius.circular(16))),
+              const SizedBox(width: 10),
+              Expanded(child: ShimmerBox(height: 98, borderRadius: BorderRadius.circular(16))),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              ShimmerBox(height: 22, width: 100, borderRadius: BorderRadius.circular(8)),
+              const Spacer(),
+              ShimmerBox(height: 18, width: 60, borderRadius: BorderRadius.circular(8)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ShimmerBox(height: 140, borderRadius: BorderRadius.circular(18)),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ShimmerBox(height: 22, width: 130, borderRadius: BorderRadius.circular(8)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 82, borderRadius: BorderRadius.circular(16))),
+              const SizedBox(width: 10),
+              Expanded(child: ShimmerBox(height: 82, borderRadius: BorderRadius.circular(16))),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 82, borderRadius: BorderRadius.circular(16))),
+              const SizedBox(width: 10),
+              Expanded(child: ShimmerBox(height: 82, borderRadius: BorderRadius.circular(16))),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              ShimmerBox(height: 22, width: 150, borderRadius: BorderRadius.circular(8)),
+              const Spacer(),
+              ShimmerBox(height: 18, width: 60, borderRadius: BorderRadius.circular(8)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 4,
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) => ShimmerBox(
+                height: 120,
+                width: 140,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 88),
         ],
       ),
     );
