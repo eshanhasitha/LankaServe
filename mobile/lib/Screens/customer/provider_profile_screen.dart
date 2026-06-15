@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../config/ui_styles.dart';
 import '../../services/job_service.dart';
@@ -507,7 +508,7 @@ class _TopProfilePanel extends StatelessWidget {
                       image: DecorationImage(
                         image: NetworkImage(
                           avatar.isNotEmpty
-                              ? avatar
+                              ? AppConstants.normalizeUrl(avatar)
                               : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}',
                         ),
                         fit: BoxFit.cover,

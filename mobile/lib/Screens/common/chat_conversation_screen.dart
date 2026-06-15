@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../services/message_badge_service.dart';
 import '../../services/message_service.dart';
+import '../../widgets/shimmer_skeleton.dart';
+import '../../widgets/ui_scale.dart';
 
 class ChatConversationScreen extends StatefulWidget {
   const ChatConversationScreen({super.key});
@@ -176,6 +178,56 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     });
   }
 
+  void _showInfoSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Conversation Info',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF141C34),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_jobId != null && _jobId!.isNotEmpty)
+                Text('Job ID: $_jobId')
+              else
+                const Text('Direct conversation'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF273D98),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _isMine(Map<String, dynamic> msg) {
     final senderId = _extractEntityId(msg['senderId']);
     if (senderId.isNotEmpty) return senderId != _otherUserId;
@@ -234,17 +286,22 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final compactScale = UiScale.factor(context, min: 0.76, max: 0.90);
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF3F4F7),
       body: SafeArea(
-        child: Column(
-          children: [
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(compactScale)),
+          child: Column(
+            children: [
             _ChatHeader(
               name: _name,
               avatarUrl: _avatarUrl,
               isJobConversation: _jobId != null && _jobId!.isNotEmpty,
               onBack: () => Navigator.of(context).maybePop(),
+              onInfo: _showInfoSheet,
+              onOptions: () {},
             ),
             Expanded(
               child: RefreshIndicator(
@@ -255,7 +312,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   children: [
                     if (_loading)
-                      const _InfoTile('Loading messages...')
+                      const _MessagesSkeleton()
                     else if (_error != null)
                       _InfoTile(_error!)
                     else if (_messages.isEmpty)
@@ -284,6 +341,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -295,12 +353,16 @@ class _ChatHeader extends StatelessWidget {
     required this.avatarUrl,
     required this.isJobConversation,
     required this.onBack,
+    this.onInfo,
+    this.onOptions,
   });
 
   final String name;
   final String avatarUrl;
   final bool isJobConversation;
   final VoidCallback onBack;
+  final VoidCallback? onInfo;
+  final VoidCallback? onOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -357,9 +419,24 @@ class _ChatHeader extends StatelessWidget {
               ],
             ),
           ),
-          _TopActionIcon(icon: Icons.call_rounded, onTap: () {}),
+          _TopActionIcon(icon: Icons.info_outline_rounded, onTap: onInfo ?? () {}),
           const SizedBox(width: 8),
-          _TopActionIcon(icon: Icons.info_outline_rounded, onTap: () {}),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Color(0xFF6E7F98)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'clear',
+                child: Text('Clear Chat'),
+              ),
+              const PopupMenuItem(
+                value: 'report',
+                child: Text('Report User'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -687,6 +764,72 @@ class _InfoTile extends StatelessWidget {
           color: Color(0xFF6E7F98),
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _MessagesSkeleton extends StatelessWidget {
+  const _MessagesSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ShimmerBox(height: 28, width: 28, borderRadius: BorderRadius.circular(14)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ShimmerBox(height: 60, width: 220, borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: ShimmerBox(height: 80, width: 200, borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ShimmerBox(height: 28, width: 28, borderRadius: BorderRadius.circular(14)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ShimmerBox(height: 48, width: 160, borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: ShimmerBox(height: 48, width: 120, borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

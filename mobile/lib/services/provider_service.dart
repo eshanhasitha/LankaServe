@@ -39,6 +39,11 @@ class ProviderService {
     return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> getProviderBadges() async {
+    final res = await _api.get('/providers/badges');
+    return (res['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> getProviderEarnings({
     int page = 1,
     int limit = 20,

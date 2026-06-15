@@ -5,6 +5,7 @@ import '../../services/message_badge_service.dart';
 import '../../services/message_service.dart';
 import '../../widgets/customer_bottom_nav.dart';
 import '../../widgets/provider_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -141,7 +142,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ).copyWith(textScaler: TextScaler.linear(compactScale)),
           child: Column(
             children: [
-              const _Header(),
+              _Header(
+                onMarkAllRead: () async {
+                  try {
+                    await _messageService.markAllAsRead();
+                    _loadConversations();
+                  } catch (_) {}
+                },
+              ),
               _SearchBar(controller: _searchController),
               Expanded(
                 child: RefreshIndicator(
@@ -150,8 +158,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: const [
-                            SizedBox(height: 80),
-                            _InfoTile('Loading conversations...'),
+                            SizedBox(height: 12),
+                            _ChatSkeleton(),
                           ],
                         )
                       : _error != null
@@ -213,29 +221,72 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({this.onMarkAllRead});
+
+  final VoidCallback? onMarkAllRead;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 64,
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 8, 10),
       decoration: const BoxDecoration(
         color: Color(0xFFF8F9FB),
         border: Border(bottom: BorderSide(color: Color(0xFFE1E6EE))),
       ),
-      child: const Row(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              'Messages',
-              style: TextStyle(
-                color: Color(0xFF121C33),
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                height: 1.0,
-              ),
+          const Text(
+            'Messages',
+            style: TextStyle(
+              color: Color(0xFF141C34),
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Color(0xFF6E7F98)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onSelected: (value) {
+              if (value == 'read' && onMarkAllRead != null) {
+                onMarkAllRead!();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'read',
+                child: Row(
+                  children: [
+                    Icon(Icons.done_all, size: 20, color: Color(0xFF6E7F98)),
+                    SizedBox(width: 8),
+                    Text('Mark all as read'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'archived',
+                child: Row(
+                  children: [
+                    Icon(Icons.archive_outlined, size: 20, color: Color(0xFF6E7F98)),
+                    SizedBox(width: 8),
+                    Text('Archived chats'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined, size: 20, color: Color(0xFF6E7F98)),
+                    SizedBox(width: 8),
+                    Text('Chat settings'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -503,6 +554,42 @@ class _InfoTile extends StatelessWidget {
             color: Color(0xFF6E7F98),
             fontSize: 14.5,
             fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatSkeleton extends StatelessWidget {
+  const _ChatSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: List.generate(
+          6,
+          (_) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                ShimmerBox(height: 52, width: 52, borderRadius: BorderRadius.circular(26)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ShimmerBox(height: 18, width: 140, borderRadius: BorderRadius.circular(8)),
+                      const SizedBox(height: 8),
+                      ShimmerBox(height: 14, borderRadius: BorderRadius.circular(6)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                ShimmerBox(height: 12, width: 40, borderRadius: BorderRadius.circular(6)),
+              ],
+            ),
           ),
         ),
       ),

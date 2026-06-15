@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/customer_bottom_nav.dart';
 import '../../widgets/provider_bottom_nav.dart';
+import '../../widgets/shimmer_skeleton.dart';
 import '../../widgets/ui_scale.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -156,7 +157,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(height: 10),
                     itemBuilder: (_, i) {
                       if (_loading) {
-                        return const _InfoTile('Loading notifications...');
+                        return const _NotificationsSkeleton();
                       }
                       if (_error != null) {
                         return _InfoTile(_error!);
@@ -367,6 +368,25 @@ class _InfoTile extends StatelessWidget {
           color: Color(0xFF6E7F98),
           fontSize: 14.5,
           fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationsSkeleton extends StatelessWidget {
+  const _NotificationsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerContainer(
+      child: Column(
+        children: List.generate(
+          5,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: ShimmerBox(height: 84, borderRadius: BorderRadius.circular(16)),
+          ),
         ),
       ),
     );

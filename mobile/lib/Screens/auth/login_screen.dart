@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-
 import '../../config/firebase_bootstrap.dart';
 import '../../config/routes.dart';
 import '../../config/ui_styles.dart';
@@ -39,10 +38,18 @@ class _LoginScreenState extends State<LoginScreen> {
     const Color brand = Color(0xFF243F97);
     const Color heading = Color(0xFF0B1A44);
     const Color body = Color(0xFF66758E);
-    final s = UiScale.factor(context, min: 0.86, max: 1.05);
-    final hPad = UiScale.size(context, 28, min: 16, max: 30);
-    final topPad = UiScale.size(context, 18, min: 12, max: 22);
-    final bottomPad = UiScale.size(context, 24, min: 18, max: 30);
+
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final double hs = (screenHeight / 820.0).clamp(0.65, 1.0);
+
+    final s = UiScale.factor(context, min: 0.76, max: 0.90) * hs;
+    final hPad = UiScale.size(context, 28, min: 16, max: 30) * hs;
+    final topPad = UiScale.size(context, 18, min: 10, max: 22) * hs;
+    final bottomPad = UiScale.size(context, 24, min: 14, max: 30) * hs;
+
+    double space(double value, {double min = 4, double max = double.infinity}) {
+      return (UiScale.size(context, value, min: min, max: max) * hs).clamp(min, max);
+    }
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -55,54 +62,54 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildHeader(brand, heading, s),
-                SizedBox(height: UiScale.size(context, 18, min: 12, max: 20)),
+                SizedBox(height: space(18, min: 6, max: 20)),
                 _buildLanguageSelector(body, brand, s),
-                SizedBox(height: UiScale.size(context, 34, min: 18, max: 34)),
+                SizedBox(height: space(34, min: 10, max: 34)),
                 Text(
                   'Welcome Back',
                   style: TextStyle(
                     color: heading,
-                    fontSize: UiScale.size(context, 58 / 2, min: 25, max: 30),
+                    fontSize: (UiScale.size(context, 58 / 2, min: 25, max: 30) * hs).clamp(18.0, 30.0),
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 10, min: 6, max: 12)),
+                SizedBox(height: space(10, min: 4, max: 12)),
                 Text(
                   'Please enter your details to sign in',
                   style: TextStyle(
                     color: body,
-                    fontSize: UiScale.size(context, 19 / 1.3, min: 14, max: 16),
+                    fontSize: (UiScale.size(context, 19 / 1.3, min: 14, max: 16) * hs).clamp(11.0, 16.0),
                     height: 1.4,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 30, min: 20, max: 32)),
+                SizedBox(height: space(30, min: 10, max: 32)),
                 Text(
                   'Email Address',
                   style: TextStyle(
-                    color: Color(0xFF34435C),
-                    fontSize: UiScale.size(context, 16, min: 14, max: 17),
+                    color: const Color(0xFF34435C),
+                    fontSize: (UiScale.size(context, 16, min: 14, max: 17) * hs).clamp(12.0, 17.0),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _buildInputField(
                   controller: _emailController,
                   hint: 'name@example.com',
                   keyboardType: TextInputType.emailAddress,
                   scale: s,
                 ),
-                SizedBox(height: UiScale.size(context, 18, min: 12, max: 20)),
+                SizedBox(height: space(18, min: 6, max: 20)),
                 Text(
                   'Password',
                   style: TextStyle(
-                    color: Color(0xFF34435C),
-                    fontSize: UiScale.size(context, 16, min: 14, max: 17),
+                    color: const Color(0xFF34435C),
+                    fontSize: (UiScale.size(context, 16, min: 14, max: 17) * hs).clamp(12.0, 17.0),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 8, min: 6, max: 10)),
+                SizedBox(height: space(8, min: 4, max: 10)),
                 _buildInputField(
                   controller: _passwordController,
                   hint: '••••••••',
@@ -120,30 +127,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () =>
                         _show('Forgot password flow will be added next.'),
-                    child: const Text(
+                    child: Text(
                       'Forgot password?',
                       style: TextStyle(
                         color: brand,
-                        fontSize: 17,
+                        fontSize: (17 * hs).clamp(13.0, 17.0),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 2, min: 2, max: 4)),
+                SizedBox(height: space(2, min: 1, max: 4)),
                 SizedBox(
-                  height: UiScale.size(context, 64, min: 56, max: 66),
+                  height: (UiScale.size(context, 64, min: 56, max: 66) * hs).clamp(42.0, 66.0),
                   child: ElevatedButton(
                     onPressed: _loading ? null : _handleLogin,
                     style: AppUiStyles.primaryButton(
-                      height: UiScale.size(context, 64, min: 56, max: 66),
-                      radius: BorderRadius.circular(20),
+                      height: (UiScale.size(context, 64, min: 56, max: 66) * hs).clamp(42.0, 66.0),
+                      radius: BorderRadius.circular((20 * (s / 0.8)).clamp(12.0, 20.0)),
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -156,72 +163,72 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           )
-                        : const Row(
+                        : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 'Login',
                                 style: TextStyle(
-                                  fontSize: 36 / 2,
+                                  fontSize: (18 * hs).clamp(13.0, 18.0),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              SizedBox(width: 8),
-                              Icon(Icons.login_rounded, size: 28),
+                              const SizedBox(width: 8),
+                              Icon(Icons.login_rounded, size: (28 * hs).clamp(18.0, 28.0)),
                             ],
                           ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 20, min: 16, max: 22)),
+                SizedBox(height: space(20, min: 8, max: 22)),
                 Row(
                   children: [
                     const Expanded(
                       child: Divider(color: Color(0xFFD3D9E3), thickness: 1.2),
                     ),
-                    SizedBox(width: UiScale.size(context, 12, min: 8, max: 14)),
+                    SizedBox(width: space(12, min: 6, max: 14)),
                     Text(
                       'or continue with',
                       style: TextStyle(
-                        color: Color(0xFF6D7D97),
-                        fontSize: UiScale.size(
+                        color: const Color(0xFF6D7D97),
+                        fontSize: (UiScale.size(
                           context,
                           22 / 1.3,
                           min: 14,
                           max: 17,
-                        ),
+                        ) * hs).clamp(11.0, 17.0),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    SizedBox(width: UiScale.size(context, 12, min: 8, max: 14)),
+                    SizedBox(width: space(12, min: 6, max: 14)),
                     const Expanded(
                       child: Divider(color: Color(0xFFD3D9E3), thickness: 1.2),
                     ),
                   ],
                 ),
-                SizedBox(height: UiScale.size(context, 18, min: 14, max: 20)),
+                SizedBox(height: space(18, min: 8, max: 20)),
                 SizedBox(
-                  height: UiScale.size(context, 58, min: 52, max: 60),
+                  height: (UiScale.size(context, 58, min: 52, max: 60) * hs).clamp(40.0, 60.0),
                   child: OutlinedButton(
                     onPressed: _loading ? null : _onGoogleLogin,
                     style:
                         AppUiStyles.neutralOutlineButton(
-                          height: UiScale.size(context, 58, min: 52, max: 60),
-                          radius: BorderRadius.circular(16),
+                          height: (UiScale.size(context, 58, min: 52, max: 60) * hs).clamp(40.0, 60.0),
+                          radius: BorderRadius.circular((16 * (s / 0.8)).clamp(10.0, 16.0)),
                         ).copyWith(
                           backgroundColor: WidgetStateProperty.all(
                             const Color(0xFFF8F9FB),
                           ),
                         ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        GoogleLogo(size: 26),
-                        SizedBox(width: 14),
+                        GoogleLogo(size: (26 * hs).clamp(18.0, 26.0)),
+                        const SizedBox(width: 14),
                         Text(
                           'Continue with Google',
                           style: TextStyle(
-                            color: Color(0xFF364862),
-                            fontSize: 17,
+                            color: const Color(0xFF364862),
+                            fontSize: (17 * hs).clamp(13.0, 17.0),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -229,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: UiScale.size(context, 42, min: 26, max: 42)),
+                SizedBox(height: space(42, min: 14, max: 42)),
                 Center(
                   child: TextButton(
                     onPressed: () => Navigator.pushReplacementNamed(
@@ -242,13 +249,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextSpan(
                             text: 'Don\'t have an account? ',
                             style: TextStyle(
-                              color: Color(0xFF5F6F89),
-                              fontSize: UiScale.size(
+                              color: const Color(0xFF5F6F89),
+                              fontSize: (UiScale.size(
                                 context,
                                 17,
                                 min: 15,
                                 max: 17,
-                              ),
+                              ) * hs).clamp(12.0, 17.0),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -256,12 +263,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             text: 'Register',
                             style: TextStyle(
                               color: brand,
-                              fontSize: UiScale.size(
+                              fontSize: (UiScale.size(
                                 context,
                                 17,
                                 min: 15,
                                 max: 17,
-                              ),
+                              ) * hs).clamp(12.0, 17.0),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -283,11 +290,11 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         children: [
           Container(
-            width: (98 * scale).clamp(80, 104),
-            height: (98 * scale).clamp(80, 104),
+            width: (98 * scale).clamp(48.0, 104.0),
+            height: (98 * scale).clamp(48.0, 104.0),
             decoration: BoxDecoration(
               color: brand,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular((24 * (scale / 0.8)).clamp(12.0, 24.0)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x25000000),
@@ -300,15 +307,15 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Icon(
               Icons.handshake_rounded,
               color: Colors.white,
-              size: (52 * scale).clamp(40, 54),
+              size: (52 * scale).clamp(26.0, 54.0),
             ),
           ),
-          SizedBox(height: (10 * scale).clamp(8, 12)),
+          SizedBox(height: (10 * scale).clamp(4.0, 12.0)),
           Text(
             'LankaServe',
             style: TextStyle(
               color: heading,
-              fontSize: (25 / 1.1 * scale).clamp(20, 24),
+              fontSize: (25 / 1.1 * scale).clamp(16.0, 24.0),
               fontWeight: FontWeight.w800,
               letterSpacing: -0.2,
             ),
@@ -321,9 +328,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLanguageSelector(Color body, Color brand, double scale) {
     return Center(
       child: Container(
-        width: (256 * scale).clamp(220, 280),
-        height: (54 * scale).clamp(48, 56),
-        padding: EdgeInsets.all((6 * scale).clamp(4, 6)),
+        width: (256 * scale).clamp(160.0, 280.0),
+        height: (54 * scale).clamp(36.0, 56.0),
+        padding: EdgeInsets.all((6 * scale).clamp(3.0, 6.0)),
         decoration: BoxDecoration(
           color: const Color(0xFFD6DCE5),
           borderRadius: BorderRadius.circular(999),
@@ -358,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen> {
               label,
               style: TextStyle(
                 color: selected ? brand : body,
-                fontSize: (17 * scale).clamp(14, 18),
+                fontSize: (17 * scale).clamp(11.0, 18.0),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -383,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
       textInputAction: TextInputAction.next,
       style: TextStyle(
         color: const Color(0xFF2B3B56),
-        fontSize: (18 * scale).clamp(15, 18),
+        fontSize: (18 * scale).clamp(13.0, 18.0),
         fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
@@ -392,21 +399,21 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: TextStyle(
           color: const Color(0xFF93A2B8),
-          fontSize: (18 * scale).clamp(15, 18),
+          fontSize: (18 * scale).clamp(13.0, 18.0),
           letterSpacing: obscureText ? 2.0 : 0,
           fontWeight: FontWeight.w500,
         ),
         suffixIcon: suffix,
         contentPadding: EdgeInsets.symmetric(
-          horizontal: (18 * scale).clamp(14, 18),
-          vertical: (18 * scale).clamp(14, 18),
+          horizontal: (18 * scale).clamp(10.0, 18.0),
+          vertical: (18 * scale).clamp(10.0, 18.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular((18 * (scale / 0.8)).clamp(10.0, 18.0)),
           borderSide: const BorderSide(color: Color(0xFFD3DAE5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular((18 * (scale / 0.8)).clamp(10.0, 18.0)),
           borderSide: const BorderSide(color: Color(0xFF9CADC3), width: 1.3),
         ),
       ),
