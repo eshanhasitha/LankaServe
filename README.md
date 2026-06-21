@@ -167,7 +167,7 @@ cd backend
 docker-compose up --build -d
 ```
 
-or:
+or: 
 
 ```powershell
 cd backend
