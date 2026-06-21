@@ -17,6 +17,7 @@ function toCurrency(value) {
   return `LKR ${Number(value || 0).toLocaleString()}`;
 }
 
+// Map database tags safely to match visual badges
 function statusPill(status) {
   const s = String(status || '').toLowerCase();
   if (s === 'ongoing') return { label: 'In Progress', className: 'bg-blue-50 text-[#2F4DA0]' };
@@ -238,9 +239,9 @@ export default function ProviderMyJobsPage() {
                     className="border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
                     to="/provider/messages"
                     state={{
-                      customerId: job.customerId?._id || job.customerId || '',
-                      customerName: job.customerId?.name || 'Customer',
-                      customerAvatar: job.customerId?.profileImage || '',
+                      customerId: typeof job.customerId === 'object' && job.customerId ? (job.customerId._id || job.customerId) : job.customerId,
+                      customerName: job.customerName || 'Customer',
+                      customerAvatar: job.customerImage || '',
                       jobId: job._id,
                       jobTitle: job.title || 'Job Conversation',
                     }}
@@ -291,4 +292,3 @@ export default function ProviderMyJobsPage() {
     </div>
   );
 }
-

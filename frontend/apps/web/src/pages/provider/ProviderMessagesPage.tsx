@@ -39,6 +39,10 @@ export default function ProviderMessagesPage() {
   const navigate = useNavigate();
   const messagesContainerRef = useRef(null);
   const lastMessageIdRef = useRef('');
+  
+  // 🏁 Declared missing reference to fix lookup runtime exceptions
+  const routeSelectionRef = useRef('');
+
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState([]);
   const [activeThreadId, setActiveThreadId] = useState('');
@@ -260,7 +264,8 @@ export default function ProviderMessagesPage() {
   }
 
   // 📱 Live Hardware Handlers
-  function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
+  type FileChangeEvent = React.ChangeEvent<HTMLInputElement>;
+  function handleFileSelection(event: FileChangeEvent) {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
     setDraftMessage(`📸 Attached Image: ${selectedFile.name}`);
