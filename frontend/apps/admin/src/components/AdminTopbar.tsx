@@ -1,4 +1,5 @@
-﻿import { useAdminAuth } from '../lib/auth-context.tsx';
+import { Link } from 'react-router-dom';
+import { useAdminAuth } from '../lib/auth-context.tsx';
 
 function AdminAvatar({ name }) {
   const initial = String(name || 'A').trim().charAt(0).toUpperCase() || 'A';
@@ -26,10 +27,10 @@ export default function AdminTopbar() {
       </div>
 
       <div className="flex items-center gap-6">
-        <button type="button" className="relative text-slate-500 transition-colors hover:text-(--primary)">
+        <Link to="/notifications" className="relative text-slate-500 transition-colors hover:text-(--primary)" aria-label="Open notifications">
           <span className="material-symbols-outlined text-2xl">notifications</span>
           <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
-        </button>
+        </Link>
 
         <div className="group flex cursor-pointer items-center gap-3 border-l border-slate-100 pl-4">
           <div className="text-right">
