@@ -7,6 +7,7 @@ const REPORT_TYPES = [
   { key: 'jobs', label: 'Jobs Reports', icon: 'work' },
   { key: 'qr', label: 'QR Reports', icon: 'qr_code_2' },
   { key: 'reviews', label: 'Review Reports', icon: 'star' },
+  { key: 'support', label: 'Support Reports', icon: 'support_agent' },
 ];
 
 const STATUS_OPTIONS = {
@@ -15,6 +16,7 @@ const STATUS_OPTIONS = {
   jobs: ['All Statuses', 'Pending', 'Accepted', 'Completed', 'Cancelled'],
   qr: ['All Statuses', 'VERIFIED', 'FAILED'],
   reviews: ['All Statuses', 'Positive', 'Neutral', 'Negative'],
+  support: ['All Statuses', 'Open', 'In Progress', 'Resolved', 'Closed'],
 };
 
 function shortProviderId(value, index = 0) {
@@ -42,6 +44,12 @@ function formatDateTime(value) {
     minute: '2-digit',
     hour12: true,
   });
+}
+
+function todayDateInputValue() {
+  const date = new Date();
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function normalizeRegion(district) {
@@ -88,12 +96,14 @@ export default function AdminReportsPage() {
   const { authorizedRequest } = useAdminAuth();
 
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
 
   const [reportType, setReportType] = useState('providers');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [regionFilter, setRegionFilter] = useState('All Districts');
-  const [dateRangeText, setDateRangeText] = useState('Oct 01, 2024 - Oct 24, 2024');
+  const [fromDate, setFromDate] = useState(() => todayDateInputValue());
+  const [toDate, setToDate] = useState(() => todayDateInputValue());
 
   const [sourceData, setSourceData] = useState({
     users: [],
@@ -101,9 +111,11 @@ export default function AdminReportsPage() {
     jobs: [],
     qr: [],
     reviews: [],
+    support: [],
   });
 
   const [generatedRows, setGeneratedRows] = useState([]);
+  const [hasGenerated, setHasGenerated] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
 
   const usersMap = useMemo(() => {
@@ -123,12 +135,13 @@ export default function AdminReportsPage() {
     setLoading(true);
     setError('');
     try {
-      const [usersRes, providersRes, jobsRes, qrRes, reviewsRes] = await Promise.all([
+      const [usersRes, providersRes, jobsRes, qrRes, reviewsRes, supportRes] = await Promise.all([
         authorizedRequest('/admin/users?page=1&limit=1000'),
-        authorizedRequest('/providers?page=1&limit=1000'),
+        authorizedRequest('/admin/providers?page=1&limit=1000'),
         authorizedRequest('/admin/jobs?page=1&limit=1000'),
         authorizedRequest('/admin/qr-logs?page=1&limit=1000'),
         authorizedRequest('/admin/reviews?page=1&limit=1000'),
+        authorizedRequest('/admin/support-requests?page=1&limit=1000'),
       ]);
 
       setSourceData({
@@ -137,6 +150,7 @@ export default function AdminReportsPage() {
         jobs: Array.isArray(jobsRes?.data) ? jobsRes.data : [],
         qr: Array.isArray(qrRes?.data) ? qrRes.data : [],
         reviews: Array.isArray(reviewsRes?.data) ? reviewsRes.data : [],
+        support: Array.isArray(supportRes?.data) ? supportRes.data : [],
       });
     } catch (loadError) {
       setError(loadError?.message || 'Failed to load report data');
@@ -189,8 +203,15 @@ export default function AdminReportsPage() {
       });
     }
 
+    if (reportType === 'support') {
+      sourceData.support.forEach((ticket) => {
+        const region = normalizeRegion(ticket?.userDistrict || ticket?.district);
+        if (region !== 'Unknown') regions.add(region);
+      });
+    }
+
     return ['All Districts', ...Array.from(regions).sort((a, b) => a.localeCompare(b))];
-  }, [reportType, sourceData.jobs, sourceData.providers, sourceData.qr, sourceData.reviews, sourceData.users, usersMap]);
+  }, [reportType, sourceData.jobs, sourceData.providers, sourceData.qr, sourceData.reviews, sourceData.support, sourceData.users, usersMap]);
 
   useEffect(() => {
     setStatusFilter('All Statuses');
@@ -199,20 +220,14 @@ export default function AdminReportsPage() {
   }, [reportType]);
 
   const allRowsByType = useMemo(() => {
-    const fromDateText = dateRangeText.split('-')[0]?.trim();
-    const toDateText = dateRangeText.split('-')[1]?.trim();
-    const fromDate = fromDateText ? new Date(fromDateText) : null;
-    const toDate = toDateText ? new Date(toDateText) : null;
+    const startDate = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
+    const endDate = toDate ? new Date(`${toDate}T23:59:59.999`) : null;
 
     const inDateRange = (value) => {
-      if (!fromDate || !toDate) return true;
+      if (!startDate || !endDate) return true;
       const d = new Date(value);
       if (Number.isNaN(d.getTime())) return true;
-      const start = new Date(fromDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(toDate);
-      end.setHours(23, 59, 59, 999);
-      return d >= start && d <= end;
+      return d >= startDate && d <= endDate;
     };
 
     const usersRows = sourceData.users
@@ -315,14 +330,33 @@ export default function AdminReportsPage() {
         };
       });
 
+    const supportRows = sourceData.support
+      .filter((ticket) => inDateRange(ticket?.createdAt))
+      .map((ticket) => ({
+        id: ticket?.id || ticket?._id,
+        avatar: '',
+        initials: String(ticket?.userName || 'S').trim().slice(0, 2).toUpperCase(),
+        name: ticket?.subject || ticket?.category || 'Support Request',
+        sub: [ticket?.ticketNumber, ticket?.assignedAdminName ? `Assigned: ${ticket.assignedAdminName}` : 'Unassigned']
+          .filter(Boolean)
+          .join(' • '),
+        category: ticket?.category || 'Support',
+        district: normalizeRegion(ticket?.userDistrict || ticket?.userCity || ticket?.district),
+        jobs: ticket?.priority || '-',
+        rating: '-',
+        status: String(ticket?.statusLabel || ticket?.status || 'Open').replace(/_/g, ' '),
+        createdAt: ticket?.createdAt,
+      }));
+
     return {
       users: usersRows,
       providers: providersRows,
       jobs: jobsRows,
       qr: qrRows,
       reviews: reviewRows,
+      support: supportRows,
     };
-  }, [dateRangeText, sourceData.jobs, sourceData.providers, sourceData.qr, sourceData.reviews, sourceData.users, usersMap]);
+  }, [fromDate, toDate, sourceData.jobs, sourceData.providers, sourceData.qr, sourceData.reviews, sourceData.support, sourceData.users, usersMap]);
 
   const filteredRows = useMemo(() => {
     let rows = allRowsByType[reportType] || [];
@@ -338,17 +372,55 @@ export default function AdminReportsPage() {
     return rows;
   }, [allRowsByType, reportType, regionFilter, statusFilter]);
 
-  useEffect(() => {
-    setGeneratedRows(filteredRows);
-  }, [filteredRows]);
-
   const previewRows = useMemo(() => generatedRows.slice(0, visibleCount), [generatedRows, visibleCount]);
 
   const previewTotal = generatedRows.length;
 
-  function handleGenerateReport() {
-    setGeneratedRows(filteredRows);
-    setVisibleCount(5);
+  function handleFromDateChange(value) {
+    setFromDate(value);
+    if (value && toDate && new Date(value) > new Date(toDate)) {
+      setToDate(value);
+    }
+  }
+
+  function handleToDateChange(value) {
+    setToDate(value);
+  }
+
+  function buildReportQuery() {
+    const params = new URLSearchParams({
+      type: reportType,
+      fromDate,
+      toDate,
+      status: statusFilter,
+      district: regionFilter,
+      limit: '1000',
+    });
+
+    return params.toString();
+  }
+
+  async function handleGenerateReport() {
+    setGenerating(true);
+    setError('');
+    try {
+      const response = await authorizedRequest(`/admin/reports?${buildReportQuery()}`);
+      const rows = Array.isArray(response?.data?.rows)
+        ? response.data.rows
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+      setGeneratedRows(rows);
+      setHasGenerated(true);
+      setVisibleCount(5);
+    } catch (reportError) {
+      setGeneratedRows([]);
+      setHasGenerated(true);
+      setError(reportError?.message || 'Failed to generate report');
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function handleExportCsv() {
@@ -356,7 +428,7 @@ export default function AdminReportsPage() {
       { label: 'Name', value: (r) => r.name },
       { label: 'Category', value: (r) => r.category },
       { label: 'District', value: (r) => r.district },
-      { label: 'Completed Jobs', value: (r) => r.jobs },
+      { label: reportType === 'support' ? 'Priority' : reportType === 'jobs' ? 'Budget' : 'Completed Jobs', value: (r) => r.jobs },
       { label: 'Rating', value: (r) => r.rating },
       { label: 'Status', value: (r) => r.status },
       { label: 'Created At', value: (r) => formatDateTime(r.createdAt) },
@@ -386,7 +458,7 @@ export default function AdminReportsPage() {
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">Select Report Type</h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
           {REPORT_TYPES.map((type) => {
             const active = type.key === reportType;
             return (
@@ -414,17 +486,36 @@ export default function AdminReportsPage() {
 
         <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
           <form className="flex flex-wrap items-end gap-6" onSubmit={(event) => event.preventDefault()}>
-            <div className="min-w-60 flex-1 space-y-2">
+            <div className="min-w-80 flex-1 space-y-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Date Range</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-3 flex items-center text-slate-400"><span className="material-symbols-outlined text-lg">calendar_today</span></span>
-                <input
-                  value={dateRangeText}
-                  onChange={(event) => setDateRangeText(event.target.value)}
-                  className="w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-700"
-                  type="text"
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="relative block">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <span className="material-symbols-outlined text-lg">calendar_today</span>
+                  </span>
+                  <input
+                    value={fromDate}
+                    onChange={(event) => handleFromDateChange(event.target.value)}
+                    className="w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-(--primary)"
+                    type="date"
+                    aria-label="Report start date"
+                  />
+                </label>
+                <label className="relative block">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <span className="material-symbols-outlined text-lg">event</span>
+                  </span>
+                  <input
+                    value={toDate}
+                    min={fromDate}
+                    onChange={(event) => handleToDateChange(event.target.value)}
+                    className="w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-(--primary)"
+                    type="date"
+                    aria-label="Report end date"
+                  />
+                </label>
               </div>
+              <p className="text-[11px] font-medium text-slate-400">Today is selected by default. Choose a later end date to extend the report range.</p>
             </div>
 
             <div className="min-w-60 flex-1 space-y-2">
@@ -456,10 +547,11 @@ export default function AdminReportsPage() {
             <button
               type="button"
               onClick={handleGenerateReport}
-              className="flex items-center gap-2 rounded-lg bg-(--primary) px-8 py-2.5 text-sm font-bold text-white transition-all hover:bg-[#253D80]"
+              disabled={generating}
+              className="flex items-center gap-2 rounded-lg bg-(--primary) px-8 py-2.5 text-sm font-bold text-white transition-all hover:bg-[#253D80] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="material-symbols-outlined text-xl">analytics</span>
-              Generate Report
+              {generating ? 'Generating...' : 'Generate Report'}
             </button>
           </form>
         </div>
@@ -500,26 +592,28 @@ export default function AdminReportsPage() {
                   <th className="px-6 py-4">{reportType === 'providers' ? 'Provider Name' : 'Name'}</th>
                   <th className="px-6 py-4">Category</th>
                   <th className="px-6 py-4">District</th>
-                  <th className="px-6 py-4">{reportType === 'jobs' ? 'Budget' : 'Completed Jobs'}</th>
+                  <th className="px-6 py-4">{reportType === 'support' ? 'Priority' : reportType === 'jobs' ? 'Budget' : 'Completed Jobs'}</th>
                   <th className="px-6 py-4">Rating</th>
                   <th className="px-6 py-4">Status</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-50">
-                {loading ? (
+                {loading || generating ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-6 text-sm text-slate-500">Loading {sectionTitle.toLowerCase()}...</td>
+                    <td colSpan={6} className="px-6 py-6 text-sm text-slate-500">{generating ? 'Generating report...' : `Loading ${sectionTitle.toLowerCase()}...`}</td>
                   </tr>
                 ) : null}
 
-                {!loading && !previewRows.length ? (
+                {!loading && !generating && !previewRows.length ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-6 text-sm text-slate-500">No results for current filters.</td>
+                    <td colSpan={6} className="px-6 py-6 text-sm text-slate-500">
+                      {hasGenerated ? 'No results for current filters.' : 'Select filters and click Generate Report.'}
+                    </td>
                   </tr>
                 ) : null}
 
-                {!loading && previewRows.map((row) => (
+                {!loading && !generating && previewRows.map((row) => (
                   <tr key={row.id}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

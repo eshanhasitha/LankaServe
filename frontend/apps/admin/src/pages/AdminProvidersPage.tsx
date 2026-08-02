@@ -1,7 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 import { TableSkeletonRows } from '../components/AdminSkeletons.tsx';
-import { apiRequest } from '../lib/api.ts';
 
 const tabs = [
   { key: 'pending', label: 'Pending Verification' },
@@ -51,7 +50,7 @@ export default function AdminProvidersPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await apiRequest(`/providers?page=${targetPage}&limit=20`);
+      const response = await authorizedRequest(`/admin/providers?page=${targetPage}&limit=20`);
       const rows = Array.isArray(response?.data) ? response.data : [];
       setProviders(rows);
       setPagination(response?.pagination || { page: targetPage, totalPages: 1, total: rows.length });
@@ -63,7 +62,7 @@ export default function AdminProvidersPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, [authorizedRequest, selectedId]);
 
   useEffect(() => {
     loadProviders(page);
