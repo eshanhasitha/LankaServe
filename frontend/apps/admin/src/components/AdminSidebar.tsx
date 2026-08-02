@@ -12,6 +12,8 @@ const groups = [
       ['qr_code_scanner', 'QR Logs', '/qr-logs'],
       ['reviews', 'Reviews', '/reviews'],
       ['ads_click', 'Ads', '/adds'],
+      ['support_agent', 'Support Requests', '/support/requests'],
+      ['forum', 'Support Chat', '/support/chat'],
     ],
   },
   {

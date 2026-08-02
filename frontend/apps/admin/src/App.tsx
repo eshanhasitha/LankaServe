@@ -14,6 +14,9 @@ import AdminBroadcastPage from './pages/AdminBroadcastPage.tsx';
 import AdminReportsPage from './pages/AdminReportsPage.tsx';
 import AdminBackupPage from './pages/AdminBackupPage.tsx';
 import AdminSettingsPage from './pages/AdminSettingsPage.tsx';
+import AdminNotificationsPage from './pages/AdminNotificationsPage.tsx';
+import AdminSupportRequestsPage from './pages/AdminSupportRequestsPage.tsx';
+import AdminChatPage from './pages/AdminChatPage.tsx';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute.tsx';
 
 export default function App() {
@@ -24,12 +27,15 @@ export default function App() {
       <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="providers" element={<AdminProvidersPage />} />
         <Route path="jobs" element={<AdminJobsPage />} />
         <Route path="qr-logs" element={<AdminQrLogsPage />} />
         <Route path="reviews" element={<AdminReviewsPage />} />
         <Route path="adds" element={<AdminAddsPage />} />
+        <Route path="support/requests" element={<AdminSupportRequestsPage />} />
+        <Route path="support/chat" element={<AdminChatPage />} />
 
         <Route path="insights/analytics" element={<AdminAnalyticsPage />} />
         <Route path="insights/badge-rules" element={<AdminBadgeRulesPage />} />
