@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 import { TableSkeletonRows } from '../components/AdminSkeletons.tsx';
 
@@ -34,6 +35,9 @@ function ProviderAvatar({ name, image }) {
 
 export default function AdminProvidersPage() {
   const { authorizedRequest } = useAdminAuth();
+  const [searchParams] = useSearchParams();
+  const query = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [providers, setProviders] = useState([]);
@@ -72,11 +76,21 @@ export default function AdminProvidersPage() {
     return providers.filter((provider) => {
       const id = String(provider?._id || '');
       const isRejected = rejectedIds.has(id);
-      if (activeTab === 'rejected') return isRejected;
-      if (activeTab === 'verified') return provider?.verified && !isRejected;
-      return !provider?.verified && !isRejected;
+
+      const name = String(provider?.userId?.name || provider?.businessName || '').toLowerCase();
+      const email = String(provider?.userId?.email || '').toLowerCase();
+      const category = String(provider?.category || provider?.categories?.[0] || '').toLowerCase();
+
+      const matchesQuery = !query || name.includes(query) || email.includes(query) || category.includes(query);
+
+      let matchesTab = true;
+      if (activeTab === 'rejected') matchesTab = isRejected;
+      else if (activeTab === 'verified') matchesTab = provider?.verified && !isRejected;
+      else matchesTab = !provider?.verified && !isRejected;
+
+      return matchesQuery && matchesTab;
     });
-  }, [providers, activeTab, rejectedIds]);
+  }, [providers, activeTab, rejectedIds, query]);
 
   const selectedProvider = useMemo(() => {
     if (!filteredProviders.length) return null;
