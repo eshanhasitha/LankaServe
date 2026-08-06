@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 
 function formatTimestamp(value) {
@@ -59,6 +60,9 @@ function Avatar({ name, image }) {
 
 export default function AdminQrLogsPage() {
   const { authorizedRequest } = useAdminAuth();
+  const [searchParams] = useSearchParams();
+  const searchQuery = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rows, setRows] = useState([]);
@@ -99,7 +103,7 @@ export default function AdminQrLogsPage() {
   }, [loadLogs, page]);
 
   const normalizedRows = useMemo(() => {
-    return rows.map((row, index) => {
+    const list = rows.map((row, index) => {
       const job = jobMap.get(String(row?.jobId || ''));
       const consumerId = String(row?.scannedBy || job?.customerId || '');
       const providerId = String(job?.providerId || '');
@@ -119,7 +123,16 @@ export default function AdminQrLogsPage() {
         status: statusUi(row?.status),
       };
     });
-  }, [jobMap, rows, userMap]);
+
+    if (!searchQuery) return list;
+    return list.filter((item) => {
+      const code = String(item.logCode || '').toLowerCase();
+      const pName = String(item.providerName || '').toLowerCase();
+      const cName = String(item.consumerName || '').toLowerCase();
+      const statusLabel = String(item.status.label || '').toLowerCase();
+      return code.includes(searchQuery) || pName.includes(searchQuery) || cName.includes(searchQuery) || statusLabel.includes(searchQuery);
+    });
+  }, [rows, jobMap, userMap, searchQuery]);
 
   const selectedLog = useMemo(() => {
     if (!normalizedRows.length) return null;
