@@ -4,6 +4,7 @@ import {
   adminLogin,
   adminRefresh,
   adminLogout,
+  adminChangePassword,
 } from '../controllers/admin-auth.controller.js';
 import { requireAdminAuth } from '../middleware/admin-auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -40,6 +41,18 @@ router.post(
     })
   ),
   adminLogout
+);
+
+router.post(
+  '/change-password',
+  requireAdminAuth,
+  validate(
+    Joi.object({
+      currentPassword: Joi.string().required(),
+      newPassword: Joi.string().min(6).required(),
+    })
+  ),
+  adminChangePassword
 );
 
 export default router;

@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import Admin from '../models/Admin.model.js';
-import { comparePassword } from '../utils/password.js';
+import { comparePassword, hashPassword } from '../utils/password.js';
 import { signAccessToken, signRefreshToken, parseRefreshToken } from '../utils/tokens.js';
+import { writeAuditLog } from './audit.service.js';
 
 const refreshExpiryDate = () => {
   const now = Date.now();
@@ -14,6 +15,7 @@ const serializeAdmin = (admin) => ({
   email: admin.email,
   role: admin.role,
   isActive: admin.isActive,
+  mustChangePassword: Boolean(admin.mustChangePassword),
   createdAt: admin.createdAt,
   updatedAt: admin.updatedAt,
 });
@@ -57,12 +59,48 @@ export const loginAdmin = async (email, password) => {
     throw new Error('Invalid admin credentials');
   }
 
+  const isDefaultPw = password === 'Admin@123';
+  if (isDefaultPw && !admin.mustChangePassword) {
+    admin.mustChangePassword = true;
+    await admin.save();
+  }
+
   const tokens = await createAdminSessionTokens(admin);
 
   return {
     admin: serializeAdmin(admin),
     ...tokens,
   };
+};
+
+export const changeAdminPassword = async ({ adminId, currentPassword, newPassword }) => {
+  const admin = await Admin.findById(adminId).select('+passwordHash');
+  if (!admin || !admin.isActive) {
+    throw new Error('Admin account not found or inactive');
+  }
+
+  const validCurrent = await comparePassword(currentPassword, admin.passwordHash);
+  if (!validCurrent) {
+    throw new Error('Current password is incorrect');
+  }
+
+  if (currentPassword === newPassword) {
+    throw new Error('New password must be different from current password');
+  }
+
+  admin.passwordHash = await hashPassword(newPassword);
+  admin.mustChangePassword = false;
+  await admin.save();
+
+  await writeAuditLog({
+    actorId: admin._id,
+    action: 'admin_password_change',
+    entity: 'Admin',
+    entityId: String(admin._id),
+    metadata: { email: admin.email },
+  }).catch(() => {});
+
+  return serializeAdmin(admin);
 };
 
 export const refreshAdminToken = async (refreshToken) => {
