@@ -100,6 +100,7 @@ export default function AdminChatPage() {
     }
 
     setLoadingMessages(true);
+    setError('');
     try {
       const response = await authorizedRequest(`/admin/support-chats/thread/${userId}?limit=120`);
       setMessages(Array.isArray(response?.data) ? response.data : []);

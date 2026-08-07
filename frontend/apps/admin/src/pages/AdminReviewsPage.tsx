@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 import { TableSkeletonRows } from '../components/AdminSkeletons.tsx';
 
@@ -63,6 +64,9 @@ function RatingStars({ rating }) {
 
 export default function AdminReviewsPage() {
   const { authorizedRequest } = useAdminAuth();
+  const [searchParams] = useSearchParams();
+  const urlQuery = searchParams.get('q') || searchParams.get('search') || '';
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rows, setRows] = useState([]);
@@ -74,8 +78,12 @@ export default function AdminReviewsPage() {
   const [escalatedIds, setEscalatedIds] = useState(() => new Set());
 
   const [ratingFilter, setRatingFilter] = useState(0);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState(urlQuery);
   const [feedbackType, setFeedbackType] = useState('all');
+
+  useEffect(() => {
+    setKeyword(urlQuery);
+  }, [urlQuery]);
 
   const loadReviews = useCallback(async (targetPage) => {
     setLoading(true);

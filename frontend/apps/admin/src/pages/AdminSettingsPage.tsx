@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '../lib/auth-context.tsx';
+import ChangePasswordModal from '../components/ChangePasswordModal.tsx';
 
 const STORAGE_KEY = 'admin_settings_v1';
 
@@ -53,6 +54,7 @@ export default function AdminSettingsPage() {
   const [settings, setSettings] = useState(defaultSettings);
   const [serverTime, setServerTime] = useState(new Date());
   const [message, setMessage] = useState('');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     const stored = readStoredSettings();
@@ -144,19 +146,6 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Language Preference</label>
-                <select
-                  value={settings.language}
-                  onChange={(event) => updateField('language', event.target.value)}
-                  className="w-full rounded-lg border-slate-200 text-sm focus:border-(--primary) focus:ring-(--primary) md:w-1/2"
-                >
-                  <option value="EN">English (EN)</option>
-                  <option value="SI">Sinhala (SI)</option>
-                  <option value="TA">Tamil (TA)</option>
-                </select>
-              </div>
             </div>
           </section>
 
@@ -180,7 +169,7 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 className="rounded-lg border-2 border-(--primary) px-4 py-2 text-sm font-bold text-(--primary) transition-colors hover:bg-blue-50"
-                onClick={() => setMessage('Admins must use the IT-provided password on first login and change it immediately after signing in.')}
+                onClick={() => setIsPasswordModalOpen(true)}
               >
                 Change Admin Password
               </button>
@@ -318,6 +307,11 @@ export default function AdminSettingsPage() {
           Save Changes
         </button>
       </div>
+
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
     </div>
   );
 }

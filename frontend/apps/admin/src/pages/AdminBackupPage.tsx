@@ -200,15 +200,6 @@ export default function AdminBackupPage() {
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       {message ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p> : null}
 
-      <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-        <div className="flex gap-3">
-          <span className="material-symbols-outlined text-xl">warning</span>
-          <div>
-            <p className="font-bold">Restore is destructive.</p>
-            <p className="mt-1">A restore replaces current app collection data with the selected backup snapshot. Backups metadata is preserved, but users may need to sign in again after restoring auth/admin data.</p>
-          </div>
-        </div>
-      </section>
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 import { TableSkeletonRows } from '../components/AdminSkeletons.tsx';
 
@@ -53,6 +54,9 @@ function AvatarCell({ name, image }) {
 
 export default function AdminJobsPage() {
   const { authorizedRequest } = useAdminAuth();
+  const [searchParams] = useSearchParams();
+  const searchQuery = (searchParams.get('q') || searchParams.get('search') || '').trim().toLowerCase();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rows, setRows] = useState([]);
@@ -104,14 +108,25 @@ export default function AdminJobsPage() {
       const category = String(row?.category || '').toLowerCase();
       const district = String(row?.district || row?.locationLabel || '').toLowerCase();
       const created = row?.createdAt ? new Date(row.createdAt).toISOString().slice(0, 10) : '';
+      const title = String(row?.title || '').toLowerCase();
+      const id = String(row?._id || '').toLowerCase();
+      const customerName = String(userNameFromMap(usersMap, row?.customerId)).toLowerCase();
+      const providerName = String(userNameFromMap(usersMap, row?.providerId)).toLowerCase();
+
+      const matchesSearch = !searchQuery
+        || title.includes(searchQuery)
+        || id.includes(searchQuery)
+        || category.includes(searchQuery)
+        || customerName.includes(searchQuery)
+        || providerName.includes(searchQuery);
 
       const matchesStatus = statusFilter === 'all' || status === statusFilter;
       const matchesCategory = categoryFilter === 'all' || category === categoryFilter;
       const matchesLocation = locationFilter === 'all' || district === locationFilter;
       const matchesDate = !dateFilter || created === dateFilter;
-      return matchesStatus && matchesCategory && matchesLocation && matchesDate;
+      return matchesSearch && matchesStatus && matchesCategory && matchesLocation && matchesDate;
     });
-  }, [rows, statusFilter, categoryFilter, locationFilter, dateFilter]);
+  }, [rows, statusFilter, categoryFilter, locationFilter, dateFilter, searchQuery, usersMap]);
 
   const metrics = useMemo(() => {
     const totalActive = rows.filter((row) => !['cancelled', 'canceled'].includes(String(row?.status || '').toLowerCase())).length;

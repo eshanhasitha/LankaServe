@@ -26,3 +26,4 @@ start().catch((error) => {
     logger.error(`Server bootstrap failed: ${error.message}`);
     process.exit(1);
 });
+
