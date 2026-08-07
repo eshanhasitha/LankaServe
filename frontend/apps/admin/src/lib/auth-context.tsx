@@ -1,4 +1,4 @@
-﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   clearSession,
   loginAdmin,
@@ -49,6 +49,21 @@ async function refreshSessionOnce(refreshToken) {
 export function AdminAuthProvider({ children }) {
   const [session, setSession] = useState(() => readSession());
   const [initialized, setInitialized] = useState(false);
+
+  const updateAdminUser = useCallback((updatedAdmin) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const nextSession = {
+        ...prev,
+        admin: {
+          ...prev.admin,
+          ...updatedAdmin,
+        },
+      };
+      saveSession(nextSession);
+      return nextSession;
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -166,10 +181,11 @@ export function AdminAuthProvider({ children }) {
     refreshToken: session?.refreshToken ?? null,
     isAuthenticated: Boolean(session?.accessToken && session?.admin),
     initialized,
+    updateAdminUser,
     loginWithCredentials,
     authorizedRequest,
     logoutUser,
-  }), [authorizedRequest, initialized, loginWithCredentials, logoutUser, session]);
+  }), [authorizedRequest, initialized, loginWithCredentials, logoutUser, session, updateAdminUser]);
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }
