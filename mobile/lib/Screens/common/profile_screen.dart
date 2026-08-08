@@ -3,9 +3,12 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/constants.dart';
 import '../../config/routes.dart';
+import '../../localization/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/provider_service.dart';
@@ -115,18 +118,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _accountLabel() {
-    return _isProvider ? 'Service Provider Account' : 'Customer Account';
+    final i18n = AppLocalizations.of(context)!;
+    return _isProvider ? i18n.translate('provider_account') : i18n.translate('customer_account');
   }
 
   String _languageLabel() {
-    final value = _me['language']?.toString().toLowerCase() ?? 'en';
+    final i18n = AppLocalizations.of(context)!;
+    final value = Provider.of<LocaleProvider>(context).locale.languageCode;
     switch (value) {
       case 'si':
-        return 'Sinhala';
+        return i18n.translate('sinhala');
       case 'ta':
-        return 'Tamil';
+        return i18n.translate('tamil');
       default:
-        return 'English';
+        return i18n.translate('english');
     }
   }
 
@@ -304,7 +309,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openLanguagePicker() async {
-    final current = (_me['language']?.toString().toLowerCase() ?? 'en');
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final current = localeProvider.locale.languageCode;
+    final i18n = AppLocalizations.of(context)!;
+    
     final selected = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
@@ -312,14 +320,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            const Text(
-              'Choose Language',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            Text(
+              i18n.translate('choose_language'),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
-            _langItem(context, current, 'en', 'English'),
-            _langItem(context, current, 'si', 'Sinhala'),
-            _langItem(context, current, 'ta', 'Tamil'),
+            _langItem(context, current, 'en', i18n.translate('english')),
+            _langItem(context, current, 'si', i18n.translate('sinhala')),
+            _langItem(context, current, 'ta', i18n.translate('tamil')),
             const SizedBox(height: 8),
           ],
         ),
@@ -329,12 +337,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (selected == null || selected == current) return;
 
     try {
+      localeProvider.setLocale(Locale(selected));
       await _apiService.put('/users/me', body: {'language': selected});
       if (!mounted) return;
       setState(() => _me['language'] = selected);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Language updated')));
+      ).showSnackBar(SnackBar(content: Text(i18n.translate('language') + ' updated')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
