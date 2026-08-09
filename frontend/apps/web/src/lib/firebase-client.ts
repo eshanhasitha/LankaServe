@@ -7,6 +7,7 @@ import {
   getAuth,
   linkWithCredential,
   reauthenticateWithCredential,
+  sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -106,3 +107,9 @@ export async function changeCurrentUserPassword({ currentPassword = '', newPassw
     throw error;
   }
 }
+
+export async function sendResetPasswordEmail(email: string) {
+  const auth = getFirebaseAuth();
+  await sendPasswordResetEmail(auth, email.trim());
+}
+

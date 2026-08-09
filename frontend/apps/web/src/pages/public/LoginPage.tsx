@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-context.tsx';
-import { loginWithEmailPassword, loginWithGooglePopup } from '../../lib/firebase-client.ts';
-import { notifyError } from '../../lib/toast.ts';
+import { loginWithEmailPassword, loginWithGooglePopup, sendResetPasswordEmail } from '../../lib/firebase-client.ts';
+import { notifyError, notifySuccess } from '../../lib/toast.ts';
 import {
   getInitialLandingLanguage,
   languageOptions,
@@ -22,6 +22,13 @@ export default function LoginPage() {
   const [language, setLanguage] = useState<LanguageCode>(getInitialLandingLanguage);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Forgot Password modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
   const { loginWithToken } = useAuth();
   const navigate = useNavigate();
   const copy = authCopy[language];
@@ -68,9 +75,45 @@ export default function LoginPage() {
       if (loginError?.code === 'auth/popup-closed-by-user' || loginError?.message?.includes('popup-closed-by-user')) {
         return; 
       }
-      notifyError(loginError.message || copy.login.errors.failed);
+      notifyError(loginError.message || copy.login.failed);
     } finally {
       setBusy(false);
+    }
+  }
+
+  function handleOpenForgotPassword() {
+    setResetEmail(email.trim());
+    setResetSent(false);
+    setShowResetModal(true);
+  }
+
+  async function handleSendResetEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      notifyError(copy.register.errors.email || 'Please enter your email address.');
+      return;
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(resetEmail.trim())) {
+      notifyError(copy.register.errors.validEmail || 'Please enter a valid email address.');
+      return;
+    }
+
+    setResetBusy(true);
+    try {
+      await sendResetPasswordEmail(resetEmail.trim());
+      setResetSent(true);
+      notifySuccess(copy.login.resetEmailSent);
+    } catch (err: any) {
+      let errMsg = err.message || 'Failed to send password reset email.';
+      if (err.code === 'auth/user-not-found') {
+        errMsg = 'No account found with this email address.';
+      } else if (err.code === 'auth/invalid-email') {
+        errMsg = 'Invalid email address.';
+      }
+      notifyError(errMsg);
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -142,6 +185,7 @@ export default function LoginPage() {
                 <button
                   className="text-xs font-bold text-[#2F4DA0] hover:underline cursor-pointer outline-none border-none bg-transparent"
                   type="button"
+                  onClick={handleOpenForgotPassword}
                 >
                   {copy.login.forgotPassword}
                 </button>
@@ -211,6 +255,93 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
+
+      {/* Forgot Password Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-[#2F4DA0] rounded-xl flex items-center justify-center">
+                  <span className="material-symbols-outlined text-xl">lock_reset</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">{copy.login.forgotPasswordModalTitle}</h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed">
+              {copy.login.forgotPasswordModalDesc}
+            </p>
+
+            {resetSent ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center mb-6">
+                <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <span className="material-symbols-outlined text-2xl">mark_email_read</span>
+                </div>
+                <p className="text-xs font-bold text-emerald-800 mb-1">{copy.login.resetEmailSent}</p>
+                <p className="text-[11px] text-emerald-600">
+                  Link sent to: <span className="font-semibold">{resetEmail}</span>
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSendResetEmail} className="flex flex-col gap-4">
+                <div>
+                  <label className={labelClass} htmlFor="resetEmail">{copy.common.emailAddress}</label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-4 text-slate-400 material-symbols-outlined text-lg">mail</span>
+                    <input
+                      className={inputClass}
+                      id="resetEmail"
+                      name="resetEmail"
+                      type="email"
+                      placeholder={copy.login.emailPlaceholder}
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(false)}
+                    className="w-1/2 h-11 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    {copy.login.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetBusy}
+                    className="w-1/2 h-11 bg-[#2F4DA0] hover:bg-blue-800 text-white text-xs font-bold tracking-widest uppercase rounded-xl shadow-md shadow-blue-900/10 active:scale-98 disabled:opacity-70 cursor-pointer transition-all"
+                  >
+                    {resetBusy ? copy.login.busy : copy.login.sendResetLink}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {resetSent && (
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="w-full h-11 bg-[#2F4DA0] hover:bg-blue-800 text-white text-xs font-bold tracking-widest uppercase rounded-xl transition-all cursor-pointer mt-2"
+              >
+                Done
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <footer className="mt-12 text-center">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center justify-center gap-1.5 select-none">

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/Avatar.tsx';
 import JobImageGallery from '../../components/JobImageGallery.tsx';
@@ -148,7 +148,7 @@ export default function CustomerJobDetailsPage() {
   }
 
   async function handleConfirmCompletion() {
-    if (!job?._id || !canConfirmCompletion || onion) return;
+    if (!job?._id || !canConfirmCompletion || confirming) return;
     setConfirming(true);
     try {
       let confirmRes = await apiRequest(`/jobs/${job._id}/complete/customer`, { method: 'PUT', headers });

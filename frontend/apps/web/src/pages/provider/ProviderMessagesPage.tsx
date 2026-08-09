@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Avatar from '../../components/Avatar.tsx';
 import Skeleton from '../../components/Skeleton.tsx';
@@ -52,6 +52,7 @@ export default function ProviderMessagesPage() {
   const [error, setError] = useState('');
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const routeSelectionRef = useRef('');
 
   const routeConversation = useMemo(() => {
     const counterpartId = location.state?.customerId;
