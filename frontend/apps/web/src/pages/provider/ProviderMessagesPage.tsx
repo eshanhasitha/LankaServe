@@ -5,7 +5,7 @@ import Skeleton from '../../components/Skeleton.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { useAuth } from '../../lib/auth-context.tsx';
 
-function formatListTime(value) {
+function formatListTime(value: string | null | undefined) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -16,19 +16,19 @@ function formatListTime(value) {
   return date.toLocaleDateString('en-LK', { month: 'short', day: 'numeric' });
 }
 
-function formatTime(value) {
+function formatTime(value: string | null | undefined) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function toTimestamp(value) {
+function toTimestamp(value: string | null | undefined) {
   const timestamp = new Date(value || 0).getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
-function buildThreadId(a, b, jobId = null) {
+function buildThreadId(a: string, b: string, jobId: string | null = null) {
   const participantKey = [String(a), String(b)].sort().join('_');
   return jobId ? `job:${String(jobId)}:${participantKey}` : `direct:${participantKey}`;
 }
@@ -559,7 +559,16 @@ export default function ProviderMessagesPage() {
   );
 }
 
-function ConversationRow({ active, image, name, time, service, preview, unread, onClick }) {
+function ConversationRow({ active, image, name, time, service, preview, unread, onClick }: {
+  active: boolean;
+  image: string;
+  name: string;
+  time: string;
+  service: string;
+  preview: string;
+  unread: number;
+  onClick: () => void;
+}) {
   return (
     <button className={`px-6 py-4 cursor-pointer border-b border-slate-100 w-full text-left ${active ? 'bg-white border-l-4 border-l-[#2F4DA0]' : 'hover:bg-slate-100'}`} onClick={onClick} type="button">
       <div className="flex gap-3">
