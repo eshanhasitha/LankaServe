@@ -96,7 +96,7 @@ export default function SupportRequestSection() {
       setUploadingAttachments(true);
       const uploaded = [];
 
-      for (const file of filesToUpload) {
+      for (const file of filesToUpload as File[]) {
         const url = await uploadSupportAttachmentImage(file, accessToken);
         uploaded.push({
           url,
