@@ -17,6 +17,7 @@ const adminSchema = new mongoose.Schema({
     index: true,
   },
   isActive: { type: Boolean, default: true },
+  mustChangePassword: { type: Boolean, default: false },
   refreshTokens: { type: [adminRefreshTokenSchema], select: false, default: [] },
   isDeleted: { type: Boolean, default: false, index: true },
   deletedAt: { type: Date, default: null },

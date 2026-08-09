@@ -10,12 +10,14 @@ type AdminApiError = Error & {
 };
 
 export async function apiRequest(path, options: AdminApiRequestOptions = {}) {
+  const { headers, ...restOptions } = options;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...restOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(headers || {}),
     },
-    ...options,
   });
 
   const payload = await response.json().catch(() => null);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../config/ui_styles.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/job_service.dart';
@@ -624,9 +625,9 @@ class _WelcomeCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Welcome back,',
-                  style: TextStyle(
+                Text(
+                  '${AppLocalizations.of(context)!.translate('welcome_back')},',
+                  style: const TextStyle(
                     color: Color(0xFFD8E2FF),
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,

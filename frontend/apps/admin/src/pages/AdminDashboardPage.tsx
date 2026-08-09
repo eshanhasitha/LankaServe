@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '../lib/auth-context.tsx';
 import { formatDateTime } from '../lib/admin-format.ts';
 import { DashboardSkeleton } from '../components/AdminSkeletons.tsx';
@@ -76,24 +76,38 @@ function buildSmoothPath(values) {
 }
 
 function buildActivityRows(auditLogs, userMap) {
-  return (auditLogs || []).slice(0, 3).map((item) => {
+  return (auditLogs || []).slice(0, 5).map((item) => {
     const action = String(item.action || '').toLowerCase();
+    const meta = item.metadata || {};
+
+    // Resolve actor name: populated User > metadata.actorName > userMap fallback > 'System'
+    const populatedName = item.actorId?.name || item.actorId?.email;
+    const userName = populatedName || meta.actorName || userMap.get(String(item.actorId))?.name || 'System';
+
+    // Map action to a readable activity type
     let activityType = action.replaceAll('_', ' ');
-    let status = 'completed';
-
-    if (action.includes('qr')) activityType = 'QR Verification Success';
+    if (action === 'provider_verify') activityType = 'Provider Verify';
+    else if (action === 'provider_verification_submit') activityType = 'Verification Submit';
+    else if (action.includes('qr')) activityType = 'QR Verification';
+    else if (action.includes('login')) activityType = 'Admin Login';
+    else if (action.includes('job') && action.includes('create')) activityType = 'Job Posted';
+    else if (action.includes('job') && action.includes('accept')) activityType = 'Job Accepted';
+    else if (action.includes('job') && action.includes('complet')) activityType = 'Job Completed';
     else if (action.includes('register') || action.includes('apply')) activityType = 'New Registration';
-    else if (action.includes('job') && action.includes('create')) {
-      activityType = 'Job Posted (Electrical)';
-      status = 'pending';
-    }
+    else if (action.includes('backup')) activityType = 'Backup Created';
 
-    if (action.includes('verify')) status = 'pending';
+    // Determine status from metadata.outcome or action name
+    let status = 'completed';
+    if (meta.outcome === 'approved' || action === 'provider_verify') status = 'verified';
+    else if (action === 'provider_verification_submit') status = 'pending';
+    else if (action.includes('reject')) status = 'rejected';
+    else if (action.includes('pending')) status = 'pending';
 
     return {
       id: item._id,
       dateLabel: formatDateTime(item.createdAt),
-      userName: userMap.get(String(item.actorId))?.name || 'System User',
+      userName,
+      userInitial: String(userName).trim().charAt(0).toUpperCase(),
       activityType: activityType.replace(/\b\w/g, (m) => m.toUpperCase()),
       status,
     };
@@ -148,7 +162,9 @@ function buildRegionalData(heatmap) {
 
 function statusClass(status) {
   if (status === 'pending') return 'bg-amber-50 text-amber-600';
-  return 'bg-emerald-50 text-emerald-600';
+  if (status === 'verified') return 'bg-emerald-50 text-emerald-600';
+  if (status === 'rejected') return 'bg-red-50 text-red-600';
+  return 'bg-blue-50 text-blue-600';
 }
 
 export default function AdminDashboardPage() {
@@ -186,7 +202,7 @@ export default function AdminDashboardPage() {
           authorizedRequest('/analytics/services'),
           authorizedRequest('/admin/jobs?page=1&limit=200'),
           authorizedRequest('/admin/qr-logs?page=1&limit=1'),
-          authorizedRequest('/admin/audit-logs?page=1&limit=3'),
+          authorizedRequest('/admin/audit-logs?page=1&limit=5'),
           authorizedRequest('/analytics/heatmap'),
           authorizedRequest('/admin/users?page=1&limit=100'),
         ]);
@@ -336,7 +352,7 @@ export default function AdminDashboardPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">
-                          {item.userName?.[0] || 'U'}
+                          {item.userInitial || item.userName?.[0] || 'U'}
                         </div>
                         <span className="text-sm font-semibold">{item.userName}</span>
                       </div>

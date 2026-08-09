@@ -88,7 +88,7 @@ export const verifyProvider = async (req, res, next) => {
             action: 'provider_verify',
             entity: 'ServiceProvider',
             entityId: String(req.params.id),
-            metadata: { actorType: 'admin', adminRole: req.admin.role },
+            metadata: { actorType: 'admin', adminRole: req.admin.role, actorName: req.admin.name || req.admin.email || 'Admin', outcome: 'approved' },
             ip: req.ip,
             userAgent: req.headers['user-agent'] || '',
         });
@@ -513,7 +513,7 @@ export const auditLogs = async (req, res, next) => {
         const { page, limit, skip } = getPagination(req.query);
         const filter = { isDeleted: false };
         const [items, total] = await Promise.all([
-            AuditLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            AuditLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('actorId', 'name email'),
             AuditLog.countDocuments(filter),
         ]);
         return sendResponse(res, { message: 'Audit logs', data: items, pagination: buildPaginationMeta({ page, limit, total }) });
