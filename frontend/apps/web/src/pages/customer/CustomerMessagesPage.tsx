@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-context.tsx';
 import { apiRequest } from '../../lib/api.ts';
@@ -28,9 +28,6 @@ function toTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
-function buildDirectThreadId(a, b) {
-  return `direct:${[String(a), String(b)].sort().join('_')}`;
-}
 
 function buildThreadId(a, b, jobId = null) {
   const participantKey = [String(a), String(b)].sort().join('_');
@@ -41,9 +38,9 @@ export default function CustomerMessagesPage() {
   const { accessToken, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const routeSelectionRef = useRef('');
   const messagesContainerRef = useRef(null);
   const lastMessageIdRef = useRef('');
+  const routeSelectionRef = useRef('');
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState([]);
   const [activeThreadId, setActiveThreadId] = useState('');

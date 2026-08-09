@@ -56,7 +56,6 @@ export default function ProviderMessagesPage() {
   const [error, setError] = useState('');
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const routeSelectionRef = useRef('');
 
   const routeConversation = useMemo(() => {
     const counterpartId = location.state?.customerId;
