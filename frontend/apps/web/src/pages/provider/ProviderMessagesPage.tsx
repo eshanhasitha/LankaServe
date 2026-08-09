@@ -39,6 +39,7 @@ export default function ProviderMessagesPage() {
   const navigate = useNavigate();
   const messagesContainerRef = useRef(null);
   const lastMessageIdRef = useRef('');
+  const routeSelectionRef = useRef('');
   const [query, setQuery] = useState('');
   const [conversations, setConversations] = useState([]);
   const [activeThreadId, setActiveThreadId] = useState('');
@@ -52,7 +53,6 @@ export default function ProviderMessagesPage() {
   const [error, setError] = useState('');
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const routeSelectionRef = useRef('');
 
   const routeConversation = useMemo(() => {
     const counterpartId = location.state?.customerId;
