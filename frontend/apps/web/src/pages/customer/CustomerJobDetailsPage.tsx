@@ -191,6 +191,18 @@ export default function CustomerJobDetailsPage() {
     );
   }
 
+  if (!job) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4 font-['Inter']">
+        <h2 className="text-2xl font-bold text-slate-800">Job not found</h2>
+        <p className="text-sm text-slate-500">The requested job details could not be found or loaded.</p>
+        <Link to="/customer/my-jobs" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
+          Back to My Jobs
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8 font-['Inter']">
       
