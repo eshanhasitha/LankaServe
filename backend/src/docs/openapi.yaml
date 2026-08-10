@@ -1,0 +1,546 @@
+openapi: 3.0.3
+info:
+  title: LankaServe Backend API
+  description: Official RESTful API documentation for LankaServe - Location-based Service Marketplace Platform in Sri Lanka.
+  version: 1.0.0
+  contact:
+    name: LankaServe Engineering Team
+    email: dev@lankaserve.lk
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local Development Server
+
+paths:
+  /:
+    get:
+      summary: Root health check
+      description: Returns server running status
+      responses:
+        '200':
+          description: Server status response
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Subsystem health check
+      responses:
+        '200':
+          description: Subsystem healthy status
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register User or Service Provider
+      description: Create a user/provider profile using a valid Firebase ID token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firebaseIdToken
+              properties:
+                firebaseIdToken:
+                  type: string
+                role:
+                  type: string
+                  enum: [customer, provider]
+                  default: customer
+                providerProfile:
+                  type: object
+                  properties:
+                    categories:
+                      type: array
+                      items:
+                        type: string
+                    bio:
+                      type: string
+                    yearsExperience:
+                      type: number
+                    serviceArea:
+                      type: string
+                    location:
+                      $ref: '#/components/schemas/GeoPoint'
+      responses:
+        '200':
+          description: Successfully registered
+        '400':
+          description: Bad request / validation error
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with Firebase ID Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firebaseIdToken
+              properties:
+                firebaseIdToken:
+                  type: string
+      responses:
+        '200':
+          description: Login successful, returns JWT tokens
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh Access Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New access token issued
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User Logout
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Session terminated
+
+  /admin-auth/login:
+    post:
+      tags:
+        - Admin Authentication
+      summary: Admin Password Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Admin logged in successfully
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get My Profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile object
+    put:
+      tags:
+        - Users
+      summary: Update My Profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                language:
+                  type: string
+                  enum: [en, si, ta]
+                profileImage:
+                  type: string
+                bio:
+                  type: string
+                district:
+                  type: string
+                city:
+                  type: string
+                location:
+                  $ref: '#/components/schemas/GeoPoint'
+      responses:
+        '200':
+          description: Profile updated
+
+  /providers:
+    get:
+      tags:
+        - Service Providers
+      summary: Search Service Providers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: verified
+          in: query
+          schema:
+            type: boolean
+        - name: availability
+          in: query
+          schema:
+            type: string
+            enum: [online, offline]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Paginated provider list
+
+  /providers/{id}:
+    get:
+      tags:
+        - Service Providers
+      summary: Public Provider Profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider public details
+
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      summary: List My Jobs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: User or Provider job history
+    post:
+      tags:
+        - Jobs
+      summary: Create Job Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - category
+                - price
+                - location
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                price:
+                  type: number
+                images:
+                  type: array
+                  items:
+                    type: string
+                preferredProviderId:
+                  type: string
+                location:
+                  $ref: '#/components/schemas/GeoPoint'
+      responses:
+        '201':
+          description: Job created
+
+  /jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get Job Details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job detail object
+
+  /jobs/{id}/accept:
+    put:
+      tags:
+        - Jobs
+      summary: Accept Job Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job accepted by provider
+
+  /jobs/{id}/arrival/scan:
+    put:
+      tags:
+        - Jobs
+      summary: Scan QR Code for Provider Arrival
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Arrival confirmed
+
+  /reviews:
+    post:
+      tags:
+        - Reviews
+      summary: Submit Job Review
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jobId
+                - rating
+              properties:
+                jobId:
+                  type: string
+                rating:
+                  type: number
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        '201':
+          description: Review created
+
+  /messages/send:
+    post:
+      tags:
+        - Messages
+      summary: Send Direct Message
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - receiverId
+                - content
+              properties:
+                receiverId:
+                  type: string
+                content:
+                  type: string
+                jobId:
+                  type: string
+      responses:
+        '200':
+          description: Message sent
+
+  /support-requests:
+    get:
+      tags:
+        - Support Requests
+      summary: List My Support Requests
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Support request tickets
+    post:
+      tags:
+        - Support Requests
+      summary: Create Support Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - category
+                - message
+              properties:
+                category:
+                  type: string
+                  enum: ['Payment Issue', 'Technical Problem', 'Account Access', 'Verification Help', 'Job Issue', 'Other']
+                subject:
+                  type: string
+                message:
+                  type: string
+                attachments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                      name:
+                        type: string
+                      type: string
+      responses:
+        '201':
+          description: Support ticket created
+
+  /uploads/profile-image:
+    post:
+      tags:
+        - Uploads
+      summary: Upload Profile Image
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    AdminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    GeoPoint:
+      type: object
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          type: string
+          enum: [Point]
+          default: Point
+        coordinates:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+          example: [79.8612, 6.9271]
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          nullable: true
+        pagination:
+          type: object
+          nullable: true
+        errorCode:
+          type: string
+          nullable: true

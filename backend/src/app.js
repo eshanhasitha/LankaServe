@@ -1,7 +1,11 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
@@ -9,6 +13,11 @@ import apiRoutes from './routes/index.routes.js';
 import { generalLimiter } from './middleware/rateLimit.middleware.js';
 import { notFoundMiddleware } from './middleware/notFound.middleware.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerDocument = YAML.load(path.join(__dirname, 'docs', 'openapi.yaml'));
+
 const app = express();
 
 app.use(helmet({
@@ -43,8 +52,11 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use(`${env.API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 app.get('/', (req, res) => {
-    res.status(200).json({ success: true, message: 'LankaServe backend running', data: { health: `${env.API_PREFIX}/health` }, pagination: null, errorCode: null });
+    res.status(200).json({ success: true, message: 'LankaServe backend running', data: { health: `${env.API_PREFIX}/health`, docs: '/api-docs' }, pagination: null, errorCode: null });
 });
 
 app.get(`${env.API_PREFIX}/health`, (req, res) => {
