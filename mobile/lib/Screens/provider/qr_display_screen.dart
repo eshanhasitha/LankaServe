@@ -98,6 +98,26 @@ class _QrDisplayScreenState extends State<QrDisplayScreen> {
     }
   }
 
+  Future<void> _startJob() async {
+    final id = _jobId;
+    if (id == null || id.isEmpty) return;
+
+    setState(() => _confirming = true);
+    try {
+      await _jobService.startJob(id);
+      if (!mounted) return;
+      _show('Job started.');
+      await _loadJob();
+    } catch (e) {
+      if (!mounted) return;
+      _show('Failed to start job: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _confirming = false);
+      }
+    }
+  }
+
   Future<void> _confirmCompletion() async {
     final id = _jobId;
     if (id == null || id.isEmpty) return;
@@ -277,7 +297,10 @@ class _QrDisplayScreenState extends State<QrDisplayScreen> {
             child: _BottomAction(
               loading: _confirming,
               enabled: _canConfirmCompletion,
-              onTap: _canConfirmCompletion ? _confirmCompletion : null,
+              title: _jobStatus() == 'arrived' ? 'Start Job' : 'Confirm Job Completion',
+              onTap: _canConfirmCompletion 
+                ? (_jobStatus() == 'arrived' ? _startJob : _confirmCompletion)
+                : null,
             ),
           ),
           const ProviderBottomNav(activeIndex: 2),
@@ -624,6 +647,11 @@ class _ProgressTimeline extends StatelessWidget {
         status == 'ongoing' ||
         status == 'completed' ||
         status == 'paid';
+    final hasArrived =
+        status == 'arrived' ||
+        status == 'ongoing' ||
+        status == 'completed' ||
+        status == 'paid';
     final inProgressDone =
         status == 'ongoing' || status == 'completed' || status == 'paid';
     final completedDone = status == 'completed' || status == 'paid';
@@ -647,7 +675,7 @@ class _ProgressTimeline extends StatelessWidget {
           ),
           state: assignedDone ? _TimelineState.done : _TimelineState.pending,
           showLine: true,
-          lineColor: inProgressDone
+          lineColor: hasArrived
               ? const Color(0xFF273D98)
               : const Color(0xFFD5DFEC),
         ),
@@ -656,12 +684,14 @@ class _ProgressTimeline extends StatelessWidget {
           subtitle: _timeLabel(
             arrived,
             fallback: inProgressDone
-                ? 'Provider is on site'
-                : 'Waiting for provider arrival',
+                ? 'Work is ongoing'
+                : (hasArrived
+                    ? 'Provider has arrived'
+                    : 'Waiting for provider arrival'),
           ),
           state: inProgressDone
-              ? _TimelineState.current
-              : _TimelineState.pending,
+              ? _TimelineState.done
+              : (hasArrived ? _TimelineState.current : _TimelineState.pending),
           showLine: true,
           lineColor: completedDone
               ? const Color(0xFF273D98)
@@ -984,10 +1014,12 @@ class _BottomAction extends StatelessWidget {
     required this.loading,
     required this.enabled,
     required this.onTap,
+    this.title = 'Confirm Job Completion',
   });
 
   final bool loading;
   final bool enabled;
+  final String title;
   final VoidCallback? onTap;
 
   @override
@@ -1015,9 +1047,9 @@ class _BottomAction extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Confirm Job Completion',
-                style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
+            : Text(
+                title,
+                style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
               ),
       ),
     );

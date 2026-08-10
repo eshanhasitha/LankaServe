@@ -201,7 +201,7 @@ export const startJob = async (jobId, providerId) => {
 
 export const confirmCompletion = async (jobId, userId, role) => {
     const job = await Job.findById(jobId);
-    if (!job || !['ongoing', 'completed'].includes(job.status)) throw new Error('Invalid job status');
+    if (!job || !['arrived', 'ongoing', 'completed'].includes(job.status)) throw new Error('Invalid job status');
 
     if (role === 'provider') {
         if (String(job.providerId) !== String(userId)) throw new Error('Forbidden');
