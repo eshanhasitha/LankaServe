@@ -20,10 +20,10 @@ describe('Job lifecycle sample flow', () => {
         }
 
         if (dbReady) {
-            const cLogin = await request(app).post('/api/auth/login').send({ firebaseIdToken: 'dev:customer@example.com:Customer One:customer' });
+            const cLogin = await request(app).post('/api/auth/login').send({ firebaseIdToken: 'dev:customer@gmail.com:Customer One:customer' });
             customerToken = cLogin.body.data.accessToken;
 
-            const pLogin = await request(app).post('/api/auth/login').send({ firebaseIdToken: 'dev:provider@example.com:Provider One:provider' });
+            const pLogin = await request(app).post('/api/auth/login').send({ firebaseIdToken: 'dev:provider@gmail.com:Provider One:provider' });
             providerToken = pLogin.body.data.accessToken;
         }
     });
