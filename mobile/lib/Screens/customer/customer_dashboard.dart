@@ -259,7 +259,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       });
 
     return ranked
-        .take(4)
+        .take(10)
         .map((entry) => _tileForCategory(entry.key, entry.value))
         .toList();
   }

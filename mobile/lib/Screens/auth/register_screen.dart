@@ -20,6 +20,19 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  static const List<Map<String, dynamic>> _serviceCategories = [
+    {'title': 'Plumbing', 'icon': Icons.plumbing_rounded, 'color': Color(0xFF3D5FD2), 'bg': Color(0xFFE6ECF6)},
+    {'title': 'Electrical', 'icon': Icons.electrical_services_rounded, 'color': Color(0xFFF97316), 'bg': Color(0xFFFFEFE4)},
+    {'title': 'Cleaning', 'icon': Icons.cleaning_services_rounded, 'color': Color(0xFF3D5FD2), 'bg': Color(0xFFE6ECF6)},
+    {'title': 'Carpentry', 'icon': Icons.handyman_rounded, 'color': Color(0xFF16A34A), 'bg': Color(0xFFE8F1EC)},
+    {'title': 'Painting', 'icon': Icons.format_paint_rounded, 'color': Color(0xFF0284C7), 'bg': Color(0xFFE9F5FF)},
+    {'title': 'Gardening', 'icon': Icons.yard_rounded, 'color': Color(0xFF16A34A), 'bg': Color(0xFFE8F1EC)},
+    {'title': 'AC Repair', 'icon': Icons.ac_unit_rounded, 'color': Color(0xFF2563EB), 'bg': Color(0xFFE8F4FF)},
+    {'title': 'Appliance Repair', 'icon': Icons.build_circle_rounded, 'color': Color(0xFF7C3AED), 'bg': Color(0xFFF2EFFF)},
+    {'title': 'Masonry', 'icon': Icons.foundation_rounded, 'color': Color(0xFF16A34A), 'bg': Color(0xFFE8F1EC)},
+    {'title': 'Other', 'icon': Icons.miscellaneous_services_rounded, 'color': Color(0xFFF97316), 'bg': Color(0xFFF3EDE4)},
+  ];
+
   String _selectedLanguage = 'EN';
   RegisterType _selectedType = RegisterType.customer;
 
@@ -235,24 +248,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _buildProviderDivider(),
                   SizedBox(height: space(16, min: 8, max: 18)),
                   const _FieldLabel('Service Category'),
-                  SizedBox(height: space(8, min: 4, max: 10)),
-                  GestureDetector(
-                    onTap: _selectServiceCategory,
-                    child: AbsorbPointer(
-                      child: _AppInput(
-                        controller: _serviceCategoryController,
-                        hint: 'Select your primary service',
-                        hintColor: _serviceCategoryController.text.isEmpty
-                            ? const Color(0xFF202634)
-                            : const Color(0xFF202634),
-                        suffix: const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: Color(0xFF8EA0B8),
-                          size: 30,
-                        ),
-                      ),
-                    ),
-                  ),
+                  SizedBox(height: space(12, min: 6, max: 14)),
+                  _buildCategoryGrid(s),
                   SizedBox(height: space(14, min: 6, max: 16)),
                   const _FieldLabel('Service Area'),
                   SizedBox(height: space(8, min: 4, max: 10)),
@@ -428,6 +425,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCategoryGrid(double scale) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: _serviceCategories.length,
+      itemBuilder: (context, index) {
+        final cat = _serviceCategories[index];
+        final isSelected = _serviceCategoryController.text == cat['title'];
+        return InkWell(
+          onTap: () {
+            setState(() {
+              _serviceCategoryController.text = cat['title'];
+            });
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: isSelected ? cat['color'] : cat['bg'],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? cat['color'] : const Color(0xFFDDE4F0),
+                width: isSelected ? 2.5 : 1.2,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: cat['color'].withOpacity(0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  cat['icon'],
+                  size: 28 * scale,
+                  color: isSelected ? Colors.white : cat['color'],
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    cat['title'],
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5 * scale,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? Colors.white : cat['color'].withOpacity(0.85),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -735,61 +803,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ],
     );
-  }
-
-  Future<void> _selectServiceCategory() async {
-    final options = <String>[
-      'Plumbing',
-      'Electrical',
-      'Cleaning',
-      'Renovation',
-      'Moving',
-    ];
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFFF8F9FB),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Select your primary service',
-                  style: TextStyle(
-                    color: Color(0xFF0B1A44),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...options.map(
-                  (item) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      item,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onTap: () => Navigator.pop(context, item),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (selected != null && selected.isNotEmpty) {
-      setState(() => _serviceCategoryController.text = selected);
-    }
   }
 
   Future<void> _onGoogleRegister() async {

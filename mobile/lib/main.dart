@@ -24,16 +24,7 @@ Future<void> main() async {
     debugPrint('Firebase init failed: $e');
   }
   debugPrint('DEBUG: calling runApp');
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => LocaleProvider()),
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => JobProvider()),
-      ],
-      child: const LankaServeApp(),
-    ),
-  );
+  runApp(const LankaServeApp());
 }
 
 class LankaServeApp extends StatelessWidget {
@@ -41,26 +32,35 @@ class LankaServeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localeProvider = Provider.of<LocaleProvider>(context);
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'LankaServe',
-      theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.splash,
-      routes: AppRoutes.routes,
-      locale: localeProvider.locale,
-      supportedLocales: const [
-        Locale('en', ''),
-        Locale('si', ''),
-        Locale('ta', ''),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => JobProvider()),
       ],
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      child: Consumer<LocaleProvider>(
+        builder: (context, localeProvider, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'LankaServe',
+            theme: AppTheme.lightTheme,
+            initialRoute: AppRoutes.splash,
+            routes: AppRoutes.routes,
+            locale: localeProvider.locale,
+            supportedLocales: const [
+              Locale('en', ''),
+              Locale('si', ''),
+              Locale('ta', ''),
+            ],
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+          );
+        },
+      ),
     );
   }
 }

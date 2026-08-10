@@ -13,6 +13,7 @@ void main() {
 
   testWidgets('Splash shows branding', (WidgetTester tester) async {
     await tester.pumpWidget(const LankaServeApp());
+    await tester.pump(); // Allow providers to initialize and first frame to render
 
     expect(find.text('LankaServe'), findsOneWidget);
     expect(find.text('Smart Service Marketplace'), findsOneWidget);
