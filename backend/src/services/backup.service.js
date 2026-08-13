@@ -9,7 +9,8 @@ import { env } from '../config/env.js';
 import Backup from '../models/Backup.model.js';
 
 const BACKUP_SCHEMA_VERSION = 1;
-const EXCLUDED_COLLECTIONS = new Set(['backuprecords', 'backups']);
+const EXCLUDED_COLLECTIONS = new Set(['backuprecords', 'backups', 'auditlogs']);
+const LOCAL_BACKUP_DIR = path.join(process.cwd(), 'storage', 'backups');
 
 const safeFilePart = (value) => String(value || 'lankaserve')
     .replace(/[^a-zA-Z0-9_-]/g, '-')
@@ -178,11 +179,11 @@ const downloadFromDrive = async ({ fileId, filePath }) => {
             { fileId, alt: 'media', supportsAllDrives: true },
             { responseType: 'stream' },
         );
+        await pipeline(response.data, fs.createWriteStream(filePath));
     } catch (error) {
+        await fs.promises.unlink(filePath).catch(() => {});
         throw explainDriveAccessError(error, 'backup file', mode);
     }
-
-    await pipeline(response.data, fs.createWriteStream(filePath));
 };
 
 const listBackupCollections = async () => {
@@ -246,6 +247,8 @@ export const createDatabaseBackup = async ({ adminId }) => {
     const dbName = safeFilePart(mongoose.connection.name || 'lankaserve');
     const fileName = `${dbName}-backup-${nowStamp()}.json`;
     const tempPath = path.join(os.tmpdir(), fileName);
+    await fs.promises.mkdir(LOCAL_BACKUP_DIR, { recursive: true }).catch(() => {});
+    const localPath = path.join(LOCAL_BACKUP_DIR, fileName);
 
     const backup = await Backup.create({
         fileName,
@@ -256,20 +259,34 @@ export const createDatabaseBackup = async ({ adminId }) => {
 
     try {
         const snapshot = await createSnapshot();
-        await fs.promises.writeFile(tempPath, EJSON.stringify(snapshot, null, 2, { relaxed: false }), 'utf8');
+        const jsonContent = EJSON.stringify(snapshot, null, 2, { relaxed: false });
+        await fs.promises.writeFile(tempPath, jsonContent, 'utf8');
+        await fs.promises.writeFile(localPath, jsonContent, 'utf8').catch(() => {});
 
-        const driveFile = await uploadToDrive({ filePath: tempPath, fileName });
         const stat = await fs.promises.stat(tempPath);
-
-        backup.status = 'success';
-        backup.driveFileId = driveFile.id || '';
-        backup.driveWebViewLink = driveFile.webViewLink || '';
-        backup.sizeBytes = Number(driveFile.size || stat.size || 0);
+        backup.localFilePath = localPath;
+        backup.sizeBytes = Number(stat.size || 0);
         backup.collections = snapshot.collections.map((collection) => ({
             name: collection.name,
             documentCount: collection.documentCount,
         }));
+
+        let driveUploadError = null;
+        try {
+            const driveFile = await uploadToDrive({ filePath: tempPath, fileName });
+            backup.driveFileId = driveFile.id || '';
+            backup.driveWebViewLink = driveFile.webViewLink || '';
+            backup.source = 'google_drive';
+        } catch (driveErr) {
+            driveUploadError = driveErr;
+            backup.source = 'local';
+        }
+
+        backup.status = 'success';
         backup.completedAt = new Date();
+        if (driveUploadError) {
+            backup.error = `Local backup saved. Google Drive upload warning: ${driveUploadError.message}`;
+        }
         await backup.save();
 
         return backup;
@@ -298,26 +315,64 @@ export const restoreDatabaseBackup = async ({ backupId, adminId }) => {
         throw new Error('Only successful backups can be restored');
     }
 
-    if (!backup.driveFileId) {
-        throw new Error('Backup Drive file ID is missing');
-    }
-
-    const tempPath = path.join(os.tmpdir(), `restore-${backup.driveFileId}-${Date.now()}.json`);
+    const tempPath = path.join(os.tmpdir(), `restore-${backup._id}-${Date.now()}.json`);
+    const previousStatus = backup.status;
     backup.status = 'restoring';
     backup.restoredBy = adminId;
     backup.error = '';
     await backup.save();
 
     try {
-        await downloadFromDrive({ fileId: backup.driveFileId, filePath: tempPath });
-        const raw = await fs.promises.readFile(tempPath, 'utf8');
+        let raw = null;
+
+        if (backup.driveFileId) {
+            try {
+                await downloadFromDrive({ fileId: backup.driveFileId, filePath: tempPath });
+                raw = await fs.promises.readFile(tempPath, 'utf8');
+            } catch (driveErr) {
+                raw = null;
+            }
+        }
+
+        if (!raw || !raw.trim()) {
+            const candidatePaths = [
+                backup.localFilePath,
+                path.join(LOCAL_BACKUP_DIR, backup.fileName),
+            ].filter((p) => p && p !== tempPath);
+
+            for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                    const content = await fs.promises.readFile(p, 'utf8');
+                    if (content && content.trim()) {
+                        raw = content;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!raw) {
+            throw new Error('Backup snapshot file is not available from Google Drive or local storage');
+        }
+
         const snapshot = EJSON.parse(raw, { relaxed: false });
 
-        if (!snapshot || snapshot.schemaVersion !== BACKUP_SCHEMA_VERSION || !Array.isArray(snapshot.collections)) {
+        if (!snapshot || Number(snapshot.schemaVersion) !== BACKUP_SCHEMA_VERSION || !Array.isArray(snapshot.collections)) {
             throw new Error('Invalid backup snapshot format');
         }
 
         const db = mongoose.connection.db;
+
+        // Preserve current active restoring admin document if available
+        let activeAdminDoc = null;
+        if (adminId) {
+            try {
+                activeAdminDoc = await db.collection('admins').findOne({ _id: new mongoose.Types.ObjectId(adminId) });
+            } catch (e) {
+                activeAdminDoc = null;
+            }
+        }
+
         const currentCollections = await listBackupCollections();
         const snapshotNames = new Set(snapshot.collections.map((collection) => collection.name));
         const collectionsToClear = Array.from(new Set([...currentCollections, ...snapshotNames]))
@@ -331,18 +386,34 @@ export const restoreDatabaseBackup = async ({ backupId, adminId }) => {
             if (!collection?.name || EXCLUDED_COLLECTIONS.has(collection.name)) continue;
             const documents = Array.isArray(collection.documents) ? collection.documents : [];
             if (documents.length) {
-                await db.collection(collection.name).insertMany(documents, { ordered: false });
+                try {
+                    await db.collection(collection.name).insertMany(documents, { ordered: false });
+                } catch (insertErr) {
+                    // Ignore duplicate key bulk write errors when ordered: false
+                    if (!insertErr?.name?.includes('BulkWriteError')) {
+                        throw insertErr;
+                    }
+                }
+            }
+        }
+
+        // Preserve restoring admin document in admins collection
+        if (activeAdminDoc?._id) {
+            const existingAdmin = await db.collection('admins').findOne({ _id: activeAdminDoc._id });
+            if (!existingAdmin) {
+                await db.collection('admins').insertOne(activeAdminDoc).catch(() => {});
             }
         }
 
         backup.status = 'restored';
         backup.restoredAt = new Date();
         backup.restoredBy = adminId;
+        backup.error = '';
         await backup.save();
 
         return backup;
     } catch (error) {
-        backup.status = 'success';
+        backup.status = previousStatus || 'failed';
         backup.error = `Restore failed: ${error.message || 'unknown error'}`;
         await backup.save();
         throw error;

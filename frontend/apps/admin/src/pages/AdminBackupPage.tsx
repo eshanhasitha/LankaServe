@@ -84,6 +84,26 @@ export default function AdminBackupPage() {
   const [creating, setCreating] = useState(false);
   const [restoringId, setRestoringId] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [restoreModalBackup, setRestoreModalBackup] = useState(null);
+  const [restoreInputText, setRestoreInputText] = useState('');
+
+  async function triggerRestore(backup) {
+    if (!backup) return;
+    setRestoringId(backup._id);
+    setError('');
+    setMessage('');
+    try {
+      await authorizedRequest(`/admin/backups/${backup._id}/restore`, { method: 'POST' });
+      setMessage('Backup restored successfully. Existing sessions may need to sign in again.');
+      await loadData();
+    } catch (restoreError) {
+      setError(restoreError?.message || 'Failed to restore backup');
+    } finally {
+      setRestoringId('');
+      setRestoreModalBackup(null);
+      setRestoreInputText('');
+    }
+  }
 
   const loadData = useCallback(async () => {
     setError('');
@@ -155,24 +175,9 @@ export default function AdminBackupPage() {
     }
   }
 
-  async function handleRestore(backup) {
-    const confirmation = window.prompt(
-      `Restoring ${backup.fileName} will replace current database data. Type RESTORE to continue.`
-    );
-    if (confirmation !== 'RESTORE') return;
-
-    setRestoringId(backup._id);
-    setError('');
-    setMessage('');
-    try {
-      await authorizedRequest(`/admin/backups/${backup._id}/restore`, { method: 'POST' });
-      setMessage('Backup restored successfully. Existing sessions may need to sign in again.');
-      await loadData();
-    } catch (restoreError) {
-      setError(restoreError?.message || 'Failed to restore backup');
-    } finally {
-      setRestoringId('');
-    }
+  function handleRestore(backup) {
+    setRestoreModalBackup(backup);
+    setRestoreInputText('');
   }
 
   function clearLogs() {
@@ -376,6 +381,54 @@ export default function AdminBackupPage() {
           </table>
         </div>
       </section>
+
+      {restoreModalBackup ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Database Restore</h3>
+              <button
+                type="button"
+                onClick={() => setRestoreModalBackup(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-slate-600">
+              Restoring <span className="font-semibold text-slate-900">{restoreModalBackup.fileName}</span> will replace current database collections with snapshot data.
+            </p>
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              Type <strong className="font-mono">RESTORE</strong> below to confirm.
+            </div>
+            <input
+              type="text"
+              value={restoreInputText}
+              onChange={(e) => setRestoreInputText(e.target.value)}
+              placeholder="Type RESTORE"
+              className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRestoreModalBackup(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={restoreInputText.trim().toUpperCase() !== 'RESTORE' || Boolean(restoringId)}
+                onClick={() => triggerRestore(restoreModalBackup)}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {restoringId ? 'Restoring...' : 'Confirm Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
+

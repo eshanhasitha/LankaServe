@@ -4,7 +4,8 @@ const backupSchema = new mongoose.Schema({
     fileName: { type: String, required: true, trim: true },
     driveFileId: { type: String, default: '', index: true },
     driveWebViewLink: { type: String, default: '' },
-    source: { type: String, enum: ['google_drive'], default: 'google_drive' },
+    localFilePath: { type: String, default: '' },
+    source: { type: String, enum: ['google_drive', 'local'], default: 'google_drive' },
     status: {
         type: String,
         enum: ['pending', 'success', 'failed', 'restoring', 'restored'],
