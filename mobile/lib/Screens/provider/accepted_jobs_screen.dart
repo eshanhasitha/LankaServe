@@ -16,7 +16,7 @@ class AcceptedJobsScreen extends StatefulWidget {
 class _AcceptedJobsScreenState extends State<AcceptedJobsScreen> {
   final ProviderService _providerService = ProviderService();
 
-  int _activeTab = 0; // 0=accepted, 1=ongoing, 2=completed
+  int _activeTab = 0; //  0=accepted, 1=ongoing, 2=completed
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _jobs = <Map<String, dynamic>>[];
@@ -92,9 +92,7 @@ class _AcceptedJobsScreenState extends State<AcceptedJobsScreen> {
 
     if (customer is Map<String, dynamic>) {
       customerId =
-          customer['_id']?.toString() ??
-          customer['id']?.toString() ??
-          '';
+          customer['_id']?.toString() ?? customer['id']?.toString() ?? '';
       final userId = customer['userId'];
       if (customerId.isEmpty && userId is Map<String, dynamic>) {
         customerId = userId['_id']?.toString() ?? '';
@@ -386,16 +384,19 @@ class _JobCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                      style: const TextStyle(
-                        color: Color(0xFF141C34),
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                  style: const TextStyle(
+                    color: Color(0xFF141C34),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _statusBg(),
                   borderRadius: BorderRadius.circular(13),
@@ -503,14 +504,14 @@ class _JobCard extends StatelessWidget {
                 InkWell(
                   onTap: onChatTap,
                   borderRadius: BorderRadius.circular(12),
-                    child: const Padding(
-                      padding: EdgeInsets.all(6),
-                      child: Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        color: Color(0xFF5E6F88),
-                        size: 26,
-                      ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: Color(0xFF5E6F88),
+                      size: 26,
                     ),
+                  ),
                 ),
               ],
             ),
@@ -588,7 +589,10 @@ class _AcceptedJobsSkeleton extends StatelessWidget {
             3,
             (_) => Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: ShimmerBox(height: 180, borderRadius: BorderRadius.circular(20)),
+              child: ShimmerBox(
+                height: 180,
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
           ),
           const SizedBox(height: 86),

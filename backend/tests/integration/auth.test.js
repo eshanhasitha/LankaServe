@@ -28,7 +28,7 @@ describe('Auth sample flow', () => {
         if (!dbReady) return;
 
         const registerRes = await request(app).post('/api/auth/register').send({
-            firebaseIdToken: 'dev:test1@example.com:Test User:customer',
+            firebaseIdToken: 'dev:test1@gmail.com:Test User:customer',
             role: 'customer',
         });
 
@@ -38,7 +38,7 @@ describe('Auth sample flow', () => {
         expect(registerRes.body.data.refreshToken).toBeDefined();
 
         const loginRes = await request(app).post('/api/auth/login').send({
-            firebaseIdToken: 'dev:test1@example.com:Test User:customer',
+            firebaseIdToken: 'dev:test1@gmail.com:Test User:customer',
         });
 
         expect(loginRes.statusCode).toBe(200);

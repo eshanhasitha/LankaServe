@@ -496,25 +496,25 @@ class _ScanCard extends StatelessWidget {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final maxH = constraints.maxHeight;
-                  return AnimatedBuilder(
-                    animation: controller,
-                    builder: (context, child) {
-                      final scanTop = (maxH - 4) * controller.value;
-                      return Stack(
-                        children: [
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF4F7FD),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFCAD5E7),
-                                  width: 1.2,
-                                ),
-                              ),
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F7FD),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFFCAD5E7),
+                              width: 1.2,
                             ),
                           ),
-                          Positioned(
+                        ),
+                      ),
+                      AnimatedBuilder(
+                        animation: controller,
+                        builder: (context, child) {
+                          final scanTop = (maxH - 4) * controller.value;
+                          return Positioned(
                             top: scanTop,
                             left: 10,
                             right: 10,
@@ -531,66 +531,56 @@ class _ScanCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
-                          ),
-                          const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.qr_code_2_rounded,
-                                  size: 84,
-                                  color: Color(0xFF273D98),
+                          );
+                        },
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.qr_code_2_rounded,
+                              size: 76,
+                              color: Color(0xFF273D98),
+                            ),
+                            const SizedBox(height: 14),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: ElevatedButton.icon(
+                                onPressed: enabled && !submitting ? onScanTap : null,
+                                style: AppUiStyles.primaryButton(
+                                  height: 56,
+                                  radius: BorderRadius.circular(18),
                                 ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Tap the button to open camera scanner',
-                                  style: TextStyle(
-                                    color: Color(0xFF61728C),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                icon: submitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Icon(Icons.qr_code_scanner_rounded, size: 21),
+                                label: Text(
+                                  submitting
+                                      ? 'Confirming...'
+                                      : enabled
+                                      ? 'Scan QR to Confirm Arrival'
+                                      : 'No Active Job to Verify',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                          ],
+                        ),
+                      ),
+                    ],
                   );
                 },
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 56,
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: enabled && !submitting ? onScanTap : null,
-              style: AppUiStyles.primaryButton(
-                height: 56,
-                radius: BorderRadius.circular(18),
-              ),
-              icon: submitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.qr_code_scanner_rounded, size: 21),
-              label: Text(
-                submitting
-                    ? 'Confirming...'
-                    : enabled
-                    ? 'Scan QR to Confirm Arrival'
-                    : 'No Active Job to Verify',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
           ),

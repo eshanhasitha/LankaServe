@@ -1,0 +1,15 @@
+{
+  "app_name": "LankaServe",
+  "welcome_back": "Welcome Back",
+  "login": "Login",
+  "profile": "Profile",
+  "language": "Language",
+  "choose_language": "Choose Language",
+  "sinhala": "Sinhala",
+  "tamil": "Tamil",
+  "english": "English",
+  "customer_account": "Customer Account",
+  "provider_account": "Service Provider Account",
+  "logout": "Logout",
+  "dashboard": "Dashboard"
+}

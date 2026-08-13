@@ -58,12 +58,15 @@ npm run test:integration
 Backend API entry points:
 
 - Root: `/`
-- API root: `/api`
-- Health check: `/api/health`
+- API root: `/api/v1`
+- Health check: `/api/v1/health`
+- Interactive Swagger UI: `/api-docs` or `/api/v1/docs`
 
-Deployment and testing notes are in:
+API Documentation references:
 
-- `backend/docs/testing-guide.md`
+- Full API Reference: `backend/docs/API_DOCUMENTATION.md`
+- Open API 3.0 Specification: `backend/src/docs/openapi.yaml`
+- Deployment & testing guide: `backend/docs/testing-guide.md`
 - `backend/docs/deployment/render.md`
 - `backend/docs/deployment/mongodb-atlas.md`
 

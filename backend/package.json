@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/utils/seed.js",
+    "seed:fresh": "node src/utils/seed.js --fresh",
     "create-admin": "node src/utils/create-admin.js",
     "backup:win": "powershell -ExecutionPolicy Bypass -File scripts/backup.ps1",
     "backup:sh": "bash scripts/backup.sh",

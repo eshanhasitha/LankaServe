@@ -1,0 +1,15 @@
+{
+  "app_name": "LankaServe",
+  "welcome_back": "නැවත සාදරයෙන් පිළිගනිමු",
+  "login": "පුරනය වන්න",
+  "profile": "පැතිකඩ",
+  "language": "භාෂාව",
+  "choose_language": "භාෂාව තෝරන්න",
+  "sinhala": "සිංහල",
+  "tamil": "දෙමළ",
+  "english": "ඉංග්‍රීසි",
+  "customer_account": "පාරිභෝගික ගිණුම",
+  "provider_account": "සේවා සපයන්නාගේ ගිණුම",
+  "logout": "පිටවන්න",
+  "dashboard": "පුවරුව"
+}

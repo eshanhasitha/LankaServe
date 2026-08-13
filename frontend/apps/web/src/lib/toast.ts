@@ -24,3 +24,8 @@ export function notify(message, options: ToastOptions = {}) {
 export function notifyError(message, options: ToastOptions = {}) {
   notify(message, { ...options, type: 'error' });
 }
+
+export function notifySuccess(message, options: ToastOptions = {}) {
+  notify(message, { ...options, type: 'success' });
+}
+

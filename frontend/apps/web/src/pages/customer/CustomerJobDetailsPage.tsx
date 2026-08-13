@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/Avatar.tsx';
 import JobImageGallery from '../../components/JobImageGallery.tsx';
@@ -148,7 +148,7 @@ export default function CustomerJobDetailsPage() {
   }
 
   async function handleConfirmCompletion() {
-    if (!job?._id || !canConfirmCompletion || onion) return;
+    if (!job?._id || !canConfirmCompletion || confirming) return;
     setConfirming(true);
     try {
       let confirmRes = await apiRequest(`/jobs/${job._id}/complete/customer`, { method: 'PUT', headers });
@@ -187,6 +187,18 @@ export default function CustomerJobDetailsPage() {
     return (
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         <Skeleton className="h-6 w-1/4" /><Skeleton className="h-44 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4 font-['Inter']">
+        <h2 className="text-2xl font-bold text-slate-800">Job not found</h2>
+        <p className="text-sm text-slate-500">The requested job details could not be found or loaded.</p>
+        <Link to="/customer/my-jobs" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
+          Back to My Jobs
+        </Link>
       </div>
     );
   }
