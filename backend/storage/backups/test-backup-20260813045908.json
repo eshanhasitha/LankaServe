@@ -1,0 +1,106 @@
+{
+  "schemaVersion": {
+    "$numberInt": "1"
+  },
+  "createdAt": {
+    "$date": {
+      "$numberLong": "1786597148941"
+    }
+  },
+  "databaseName": "test",
+  "collections": [
+    {
+      "name": "admins",
+      "documentCount": {
+        "$numberInt": "1"
+      },
+      "documents": [
+        {
+          "_id": {
+            "$oid": "6a7d4f1ca48e08997e4c2e26"
+          },
+          "name": "Test Admin",
+          "email": "admin_test@example.com",
+          "passwordHash": "hashedpassword123",
+          "role": "super_admin",
+          "isActive": true,
+          "mustChangePassword": false,
+          "isDeleted": false,
+          "deletedAt": null,
+          "refreshTokens": [],
+          "createdAt": {
+            "$date": {
+              "$numberLong": "1786597148857"
+            }
+          },
+          "updatedAt": {
+            "$date": {
+              "$numberLong": "1786597148857"
+            }
+          },
+          "__v": {
+            "$numberInt": "0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "documentCount": {
+        "$numberInt": "1"
+      },
+      "documents": [
+        {
+          "_id": {
+            "$oid": "6a7d4f1ca48e08997e4c2e28"
+          },
+          "firebaseUid": "uid_test_1",
+          "name": "User One",
+          "email": "user1@example.com",
+          "authProvider": "password",
+          "role": "customer",
+          "language": "en",
+          "profileImage": "",
+          "bio": "",
+          "district": "",
+          "city": "",
+          "location": {
+            "type": "Point",
+            "coordinates": [
+              {
+                "$numberDouble": "79.8612"
+              },
+              {
+                "$numberDouble": "6.9271"
+              }
+            ]
+          },
+          "fcmToken": "",
+          "isActive": true,
+          "favorites": [],
+          "isDeleted": false,
+          "deletedAt": null,
+          "refreshTokens": [],
+          "createdAt": {
+            "$date": {
+              "$numberLong": "1786597148868"
+            }
+          },
+          "updatedAt": {
+            "$date": {
+              "$numberLong": "1786597148868"
+            }
+          },
+          "__v": {
+            "$numberInt": "0"
+          }
+        }
+      ]
+    }
+  ],
+  "excludedCollections": [
+    "backuprecords",
+    "backups",
+    "auditlogs"
+  ]
+}
